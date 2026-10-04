@@ -110,9 +110,12 @@ export class BumpPage {
   /**
    * Whether the release this bump asked for has stopped happening.
    *
-   * REJECTED, FAILED, CONFLICTED and WITHDRAWN all mean the same thing to a reader of this page:
-   * main is not going to move, so the repository stays pending and the nightly dispatcher has taken
-   * it out of the chain rather than sending a bump that could only answer NOTHING_TO_DO.
+   * REJECTED, FAILED and CONFLICTED all mean the same thing to a reader of this page: main is not
+   * going to move, so the repository stays pending and the nightly dispatcher has taken it out of
+   * the chain rather than sending a bump that could only answer NOTHING_TO_DO. RELEASED, FINALIZED
+   * and OBSOLETE are the opposite — the release already shipped, held rather than stopped — and
+   * WITHDRAWN is transient: the service clears the request id and asks for a fresh one, so it is
+   * never stopped either.
    */
   protected readonly stopped = computed(() => releaseStopped(this.bump()?.releaseState));
 

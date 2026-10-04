@@ -302,8 +302,9 @@ export interface BumpDto {
   readonly message: string | null;
   readonly releaseRequestId: string | null;
   /**
-   * What qits-projects last said about that request — `PENDING`, `READY`, `RELEASED`, `REJECTED`,
-   * `FAILED`, `CONFLICTED`, `WITHDRAWN` — or null on a bump nothing has asked about.
+   * What qits-projects last said about that request — `PENDING`, `READY`, `RELEASED`,
+   * `FINALIZED`, `OBSOLETE`, `WITHDRAWN`, `REJECTED`, `FAILED`, `CONFLICTED` — or null on a bump
+   * nothing has asked about.
    *
    * **It is why a repository can be pending with nothing being built.** A bump writes a branch and
    * main does not move until the release lands, so the dispatcher holds the repository until it
@@ -317,9 +318,19 @@ export interface BumpDto {
   readonly releaseStateAt?: string | null;
 }
 
-/** Whether a release state means nothing is coming from that request as it stands. */
+/**
+ * Whether a release state means nothing is coming from that request as it stands.
+ *
+ * PENDING and READY are on their way; RELEASED, FINALIZED and OBSOLETE already shipped — held, not
+ * stopped. WITHDRAWN is transient rather than stopped: the service clears the request id and asks
+ * for a fresh one, so a reader never settles on it. Only REJECTED, FAILED, CONFLICTED, or a state
+ * this page does not recognise, mean the release is not coming.
+ */
 export function releaseStopped(state: string | null | undefined): boolean {
-  return !!state && !['PENDING', 'READY', 'RELEASED'].includes(state);
+  return (
+    !!state &&
+    !['PENDING', 'READY', 'RELEASED', 'FINALIZED', 'OBSOLETE', 'WITHDRAWN'].includes(state)
+  );
 }
 
 /** No request id came back, or the branch was gone before the ask could be made. */
