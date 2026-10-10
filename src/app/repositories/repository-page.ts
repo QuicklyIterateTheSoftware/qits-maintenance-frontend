@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, convertToParamMap, RouterLink } from '@angular/router';
-import { QitsButton, QitsCard } from '@qits/ui-components';
+import { QitsCard } from '@qits/ui-components';
 import { MaintenanceApi } from '../api/maintenance-api';
 import { injectScopedProject } from '../nav/scoped-project';
 import {
@@ -29,7 +29,7 @@ import {
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { NONE, formatInstant, formatRelative, plural } from '../ui/format';
-import { LOADING, describeError, failed, ready, statusOf, type Loadable } from '../ui/loadable';
+import { LOADING, describeError, failed, ready, type Loadable } from '../ui/loadable';
 import { QITS_SCHEDULER } from '../ui/scheduler';
 import { StatusBadge } from '../ui/status-badge';
 import { tickingNow } from '../ui/ticker';
@@ -40,10 +40,9 @@ import { PinsTable } from './pins-table';
 /** How often this page re-reads while a bump for this repository is still going. */
 export const POLL_INTERVAL_MS = 2000;
 
-/** A group, with everything this page needs to draw its panel and its button. */
+/** A group, with everything this page needs to draw its panel. */
 interface GroupPanel {
   readonly group: GroupDto;
-  readonly busy: boolean;
   readonly activeBumpId: string | null;
 }
 
@@ -53,7 +52,7 @@ interface GroupPanel {
  *
  * **Pending is the service's word, never a comparison made here.** Maven, npm and OCI tags order
  * differently, and a client that decided "2026.8.10 is behind 2026.8.9" would highlight rows the
- * service is not going to move. The `pending` flag on a pin is the same answer the bump uses.
+ * service is not going to move. The `pending` flag on a pin is the same answer a bump uses.
  *
  * **The pins are split by kind, because they are read for different reasons.** Internal is release
  * work — something of ours moved and this has not followed. External is patching. And REACTOR and
@@ -72,10 +71,11 @@ interface GroupPanel {
  * the dependents, read once and retried by hand rather than polled: a bump moves pins, and the
  * closure it might move is a question for the next visit rather than for the next two seconds.
  *
- * **The button is disabled while that group's bump is running, and still handles a 409.** The
- * disable is a courtesy — the reader can see the bump on screen — and the 409 is the truth: the
- * service holds the rule, and a bump started by the schedule a second before the click is a state
- * this page cannot have seen.
+ * **There is no button here any more.** `qits-1133` retired asking for a group's branch by hand —
+ * moving its pending pins is the `dependency-bump` release-request automation's job now, at the fold
+ * of an open request or of the main-only one the dispatcher opens for it. A panel still names the
+ * group's branch and state, and still links an active bump while one is running, because that bump
+ * can still be the automation's own; it just never starts one.
  */
 @Component({
   selector: 'app-repository-page',
@@ -86,7 +86,6 @@ interface GroupPanel {
     DownstreamTable,
     Empty,
     PinsTable,
-    QitsButton,
     QitsCard,
     RouterLink,
     StatusBadge,
@@ -116,10 +115,6 @@ export class RepositoryPage {
   protected readonly dependentsState = signal<Loadable<RepositoryDependentsDto>>(LOADING);
   protected readonly downstreamState = signal<Loadable<DownstreamDto>>(LOADING);
 
-  /** The group whose button is waiting for its 202, or nothing. */
-  protected readonly bumping = signal<string | null>(null);
-  /** What came of pressing a button when it was not simply accepted — a 409, or a failure. */
-  protected readonly bumpNote = signal('');
   protected readonly pollProblem = signal('');
 
   private stopPolling: (() => void) | null = null;
@@ -250,10 +245,8 @@ export class RepositoryPage {
   /** One panel per group, each knowing whether its own branch is being written right now. */
   protected readonly panels = computed<readonly GroupPanel[]>(() => {
     const active = new Map(this.activeBumps().map((bump) => [bump.group, bump.id]));
-    const pressed = this.bumping();
     return (this.detail()?.groups ?? []).map((group) => ({
       group,
-      busy: pressed === group.name || active.has(group.name),
       activeBumpId: active.get(group.name) ?? null,
     }));
   });
@@ -371,34 +364,6 @@ export class RepositoryPage {
     }
   }
 
-  /**
-   * Create this group's branch now.
-   *
-   * A 409 means a bump for this repository and group is already active — the service's own rule,
-   * the same one the schedule obeys. It is reported as a sentence and the lists are re-read, which
-   * puts the active bump on screen.
-   */
-  protected async bump(group: string): Promise<void> {
-    if (this.bumping()) {
-      return;
-    }
-    this.bumping.set(group);
-    this.bumpNote.set('');
-    try {
-      const accepted = await this.api.startBump(this.name(), group);
-      this.bumpNote.set(`Bump ${accepted.id} accepted for ${group}.`);
-    } catch (error) {
-      this.bumpNote.set(
-        statusOf(error) === 409
-          ? `Not started: a bump is already running for ${group}. It is the one shown below.`
-          : `Could not start a bump for ${group} — ${describeError(error)}.`,
-      );
-    } finally {
-      this.bumping.set(null);
-      await this.loadBumps();
-    }
-  }
-
   /** One poll: the bumps, and the repository beside them because a landed bump moves its branch. */
   private async poll(): Promise<void> {
     if (this.inFlight) {
@@ -435,8 +400,6 @@ export class RepositoryPage {
     this.bumpsState.set(LOADING);
     this.dependentsState.set(LOADING);
     this.downstreamState.set(LOADING);
-    this.bumping.set(null);
-    this.bumpNote.set('');
     this.pollProblem.set('');
   }
 

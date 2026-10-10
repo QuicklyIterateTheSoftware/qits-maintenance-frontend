@@ -4,15 +4,14 @@ import { TestBed } from '@angular/core/testing';
 import { MaintenanceApi } from './maintenance-api';
 
 /**
- * The twelve calls, at the addresses qits-platform-maintenance serves them at.
+ * The eleven calls, at the addresses qits-platform-maintenance serves them at.
  *
  * The assertions worth having are the ones that are invisible on screen when they are wrong:
  * **every path is relative**, because a configured origin would leave the edge's session cookie
- * behind and turn every read into a 401; **the verbs are right**, because the two POSTs here start
+ * behind and turn every read into a 401; **the verb is right**, because the one POST here starts
  * real work and a GET that should have been a POST fails silently as a 405; **a name is encoded**,
  * because a dependency name holds slashes and colons; and **a failure reaches the caller whole**,
- * because the pages draw the service's own sentence from it — and because the 409 the bump button
- * depends on is only distinguishable by its status.
+ * because the pages draw the service's own sentence from it.
  */
 describe('MaintenanceApi', () => {
   let api: MaintenanceApi;
@@ -133,29 +132,6 @@ describe('MaintenanceApi', () => {
     await scan;
   });
 
-  it('asks for a group’s branch at the group’s own address', async () => {
-    const bump = api.startBump('qits-ci', 'dependencies');
-
-    const request = http.expectOne(
-      '/maintenance/api/repositories/qits-ci/groups/dependencies/bumps',
-    );
-    expect(request.request.method).toBe('POST');
-    request.flush({ id: 'bump-1' }, { status: 202, statusText: 'Accepted' });
-
-    expect((await bump).id).toBe('bump-1');
-  });
-
-  /** The one status the bump button reads rather than reports, so it must arrive intact. */
-  it('lets a 409 through to the caller as a 409', async () => {
-    const bump = api.startBump('qits-ci', 'angular');
-
-    http
-      .expectOne('/maintenance/api/repositories/qits-ci/groups/angular/bumps')
-      .flush({ message: 'a bump is already running' }, { status: 409, statusText: 'Conflict' });
-
-    await expect(bump).rejects.toMatchObject({ status: 409 });
-  });
-
   it('lists the bumps for one repository, and for all of them', async () => {
     const mine = api.bumps('qits-ci');
     const listing = http.expectOne((candidate) => candidate.url === '/maintenance/api/bumps');
@@ -228,16 +204,10 @@ describe('MaintenanceApi', () => {
     expect((await journey).version).toBe('2026.905.1');
   });
 
-  it('percent-encodes a name, a group and an id rather than pasting them into the path', async () => {
+  it('percent-encodes a name rather than pasting it into the path', async () => {
     const repository = api.repository('a/b');
     http.expectOne('/maintenance/api/repositories/a%2Fb').flush({ name: 'a/b', pins: [] });
     await repository;
-
-    const bump = api.startBump('a/b', 'angular core');
-    http
-      .expectOne('/maintenance/api/repositories/a%2Fb/groups/angular%20core/bumps')
-      .flush({ id: 'x' }, { status: 202, statusText: 'Accepted' });
-    await bump;
 
     const downstream = api.downstream('a/b');
     http

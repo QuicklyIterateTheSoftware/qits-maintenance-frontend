@@ -19,13 +19,13 @@ import { ManualScheduler } from '../testing/manual-scheduler';
 import { POLL_INTERVAL_MS } from './repository-page';
 
 /**
- * One repository's page: the pins, what its releases contain, what consumes them, the group panels
- * and the button that writes a branch.
+ * One repository's page: the pins, what its releases contain, what consumes them, and the group
+ * panels — which no longer write anything, since `qits-1133` retired the button that used to ask
+ * for a group's branch by hand.
  *
- * The assertions that matter are the ones about the button: it sends the POST the contract names,
- * it is **disabled while that group's bump is running** — and it still reports a 409, because a
- * bump the schedule started a second before the click is a state this page cannot have seen. Beside
- * those, the split of the pins by kind, and the rule that a transitive is never drawn as work.
+ * The assertions that matter now are that a panel still names an active bump and still links to it
+ * while one is running, beside the split of the pins by kind and the rule that a transitive is
+ * never drawn as work.
  */
 describe('RepositoryPage', () => {
   let http: HttpTestingController;
@@ -36,7 +36,6 @@ describe('RepositoryPage', () => {
   const DEPENDENTS_URL = '/maintenance/api/repositories/qits-ci/dependents';
   const DOWNSTREAM_URL = '/maintenance/api/repositories/qits-ci/downstream';
   const BUMPS_URL = '/maintenance/api/bumps';
-  const BUMP_URL = '/maintenance/api/repositories/qits-ci/groups/dependencies/bumps';
 
   const pin = (over: Partial<PinDto> = {}): PinDto => ({
     manifestPath: 'pom.xml',
@@ -411,60 +410,19 @@ describe('RepositoryPage', () => {
     http.verify();
   });
 
-  it('asks for the branch at the group’s own address', async () => {
+  it('has no button to ask for a branch, and says where that moved instead', async () => {
     await open(detail(), []);
 
-    page().querySelector<HTMLButtonElement>('qits-card button')?.click();
-    await settle();
-
-    const post = http.expectOne(
-      (candidate) => candidate.url === BUMP_URL && candidate.method === 'POST',
+    expect(page().querySelector('qits-card button')).toBeNull();
+    expect(page().querySelector('.panel-automation')?.textContent).toContain(
+      'dependency-bump automation',
     );
-    post.flush({ id: 'bump-9' }, { status: 202, statusText: 'Accepted' });
-    await settle();
-    bumpsRequest().flush([bump({ id: 'bump-9', status: 'REQUESTED', finishedAt: null })]);
-    await settle();
-
-    expect(page().querySelector('.page-note')?.textContent).toContain('bump-9 accepted');
     http.verify();
   });
 
-  it('says a bump is already running when the service answers 409', async () => {
-    await open(detail(), []);
-
-    page().querySelector<HTMLButtonElement>('qits-card button')?.click();
-    await settle();
-    http
-      .expectOne((candidate) => candidate.url === BUMP_URL && candidate.method === 'POST')
-      .flush({ message: 'active' }, { status: 409, statusText: 'Conflict' });
-    await settle();
-    bumpsRequest().flush([bump({ status: 'RUNNING', finishedAt: null })]);
-    await settle();
-
-    expect(page().querySelector('.page-note')?.textContent).toContain('a bump is already running');
-    http.verify();
-  });
-
-  it('reports a bump refused for any other reason, in the service’s own words', async () => {
-    await open(detail(), []);
-
-    page().querySelector<HTMLButtonElement>('qits-card button')?.click();
-    await settle();
-    http
-      .expectOne((candidate) => candidate.url === BUMP_URL && candidate.method === 'POST')
-      .flush({ message: 'ci is unreachable' }, { status: 503, statusText: 'Down' });
-    await settle();
-    bumpsRequest().flush([]);
-    await settle();
-
-    expect(page().querySelector('.page-note')?.textContent).toContain('503 ci is unreachable');
-    http.verify();
-  });
-
-  it('disables a group’s button while that group’s branch is being written', async () => {
+  it('links a group’s panel to the bump running against it', async () => {
     await open(detail(), [bump({ status: 'RUNNING', finishedAt: null })]);
 
-    expect(page().querySelector<HTMLButtonElement>('qits-card button')?.disabled).toBe(true);
     expect(page().querySelector('.panel-facts a')?.textContent).toContain('a bump is running');
     http.verify();
   });

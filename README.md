@@ -22,7 +22,7 @@ by different readers: internal is release work, external is patching.
 - **`/repositories/<name>`** — section-neutral: internal pins and external pins as two tables, what
   those pins drag in underneath them, what the platform already ships that contains this
   repository's artifacts, everything downstream of it to the end of the chain, a panel per group
-  with `Create branch now`, and the bumps it has had.
+  naming its branch and state, and the bumps it has had.
 - **`/bumps/<id>`** — one bump: the branch, the changes sent, the CI run, and what the release ask
   answered.
 - **`/adoption/<repository>/<version>`** — one release, and how far it has travelled, as a
@@ -56,7 +56,7 @@ query.
 
 **Behind is the service's word, never a comparison made here.** Maven, npm and OCI tags order
 differently, and a client that decided `2026.8.10` is behind `2026.8.9` would highlight rows the
-service is not going to move. The `pending` flag on a pin is the same answer the bump uses, and it
+service is not going to move. The `pending` flag on a pin is the same answer a bump uses, and it
 is what the external search highlights too — it used to compare two strings itself, and disagreed
 with the branch the service actually writes.
 
@@ -68,17 +68,20 @@ read as good news, which is also why a pin's `latestError` is drawn beside its b
 **A pin can be moved; a transitive cannot.** The repository page draws both, and the difference is
 the whole point of how they look: a pin that is behind is amber, and what a release merely
 *contains* is grey, indented under the direct dependency that pulled it in, collapsed until it is
-asked for, and never amber. There is no line to edit and no bump to press for it.
+asked for, and never amber. There is no line to edit and no automation that is ever going to move
+it.
 
 **What a repository consumes and what consumes it are read from different places.** Pins come from
 manifests, because a manifest is what a bump edits. Dependents come from the bills of materials of
 what has actually been released, because a service that pins the newest version and has not been
 rebuilt is still shipping the old one — and its manifest says nothing about that.
 
-**The service holds the rules; these pages report its answers.** One bump per (repository, group) is
-a `409`, and that is drawn as a sentence. The group's button is also disabled while its bump is
-running, but only as a courtesy — the rule stays in one place, and a bump the schedule started a
-second before a click is a state no page can have seen.
+**The service holds the rules; these pages report its answers.** `qits-1133` retired the group panel's
+`Create branch now` button — the door it posted to answers `410` now, on its way to `404` — and
+moved what it did into the `dependency-bump` release-request automation: a repository's pending pins
+move at the fold of an open request, or of the main-only one the dispatcher opens for it. A panel
+still names its group's branch and state, and still links an active bump while one is running,
+because that bump can still be the automation's own; it just has nothing left to press.
 
 **The journey is served, not stitched.** The service traces the whole closure downstream of a
 release and evaluates the adoption of every step of it per request, so the adoption page makes one
@@ -107,7 +110,9 @@ option: same-origin sends the cookie by default.
 
 ## The contract it consumes
 
-Twelve calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"):
+Eleven calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"). A twelfth —
+`POST /repositories/{name}/groups/{group}/bumps`, asking for a group's branch by hand — answers
+`410` now and is on its way to `404`; `qits-1133` retired it, and nothing here calls it any more.
 
 ```
 GET  /maintenance/api/repositories                                  → [{name, project, lastScanAt, headSha, status, message, pending, groups:[{name, source, kind, branch, state, headSha, pending}]}]
@@ -117,7 +122,6 @@ GET  /maintenance/api/dependencies?name=<glob>&kind=INTERNAL|EXTERNAL → [{ecos
 GET  /maintenance/api/dependencies/dependents?ecosystem=&name=      → {ecosystem, name, latest, dependents:[{artifactEcosystem, artifactName, artifactVersion, repository, embeddedVersion, direct, occurredAt, sbomStatus}]}
 GET  /maintenance/api/artifacts                                     → [{ecosystem, name, repository, latest, version, occurredAt, sbomStatus, dependentCount, behindCount}]
 POST /maintenance/api/scans {scope, repository?}                    → 202 {id}
-POST /maintenance/api/repositories/{name}/groups/{group}/bumps      → 202 {id}   (409 while one is active)
 GET  /maintenance/api/bumps?repository=&limit=20                    → [bump rows]
 GET  /maintenance/api/bumps/{id}                                    → one bump row
 GET  /maintenance/api/repositories/{name}/downstream                → {repository, catalogId, downstream:[{repository, catalogId, archetype, depth, via:[…]}]}

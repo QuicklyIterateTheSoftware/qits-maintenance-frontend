@@ -21,7 +21,12 @@ export type BranchState = 'NONE' | 'PUSHED' | 'STALE' | 'RELEASED' | 'FAILED';
 /** A bump's outcome. `NOTHING_TO_DO` is a success with no commit behind it. */
 export type BumpStatus = 'REQUESTED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'NOTHING_TO_DO';
 
-/** What asked for a bump: the service's own cron, or a button on this page. */
+/**
+ * What asked for a bump: the service's own cron, or a person pressing the button this page used to
+ * offer. `qits-1133` retired that button — a group's pending changes now move through the
+ * `dependency-bump` release-request automation instead — so `MANUAL` is only ever a historical row
+ * from before the cutover, never a fresh one.
+ */
 export type BumpTrigger = 'SCHEDULED' | 'MANUAL';
 
 /** How much of the inventory a scan refreshes. */

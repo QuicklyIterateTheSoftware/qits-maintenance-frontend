@@ -25,10 +25,6 @@
   }
 }
 
-@if (bumpNote(); as note) {
-  <p class="page-note" role="status">{{ note }}</p>
-}
-
 @if (pollProblem(); as problem) {
   <p class="stale" role="status">
     The last update did not arrive — {{ problem }}. This is the repository as it was last read.
@@ -54,12 +50,9 @@
       @for (panel of panels(); track panel.group.name) {
         <qits-card [heading]="panel.group.name" [subheading]="panel.group.branch">
           <div qitsCardActions>
-            <qits-button
-              size="sm"
-              [busy]="bumping() === panel.group.name"
-              [disabled]="panel.busy"
-              (pressed)="bump(panel.group.name)"
-              >Create branch now</qits-button
+            <span class="panel-automation"
+              >Pending pins move through a release request's dependency-bump automation now, not a
+              button here.</span
             >
           </div>
           <p class="panel-facts">

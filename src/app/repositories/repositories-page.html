@@ -107,7 +107,7 @@
 @if (bumpsState().kind === 'ready') {
   @if (bumps().length === 0) {
     <app-empty
-      message="Nothing has been bumped here yet. A branch is created by the schedule, or by the button on a repository."
+      message="Nothing has been bumped here yet. A repository's pending pins now move through a release request's dependency-bump automation, not a schedule or a button here."
     />
   } @else {
     <div class="scroll">

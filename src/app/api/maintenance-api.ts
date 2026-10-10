@@ -20,9 +20,11 @@ import type {
 /**
  * Everything this app says to qits-platform-maintenance, through the edge, at `/maintenance/api`.
  *
- * **Ten reads and two writes, and the writes are the point of the application.** A scan refreshes
- * what the platform pins and what the registries hold; a bump asks CI to write the branch. Both
- * answer 202: the work is accepted, not finished, and every page re-reads for anything else.
+ * **Ten reads and one write, and the write is the point of the application.** A scan refreshes what
+ * the platform pins and what the registries hold, and answers 202: the work is accepted, not
+ * finished, and every page re-reads for anything else. Asking for a group's branch by hand is gone
+ * with it — `qits-1133` moved that into the `dependency-bump` release-request automation, which this
+ * app has no door to and nothing here calls.
  *
  * **Five of the reads are about the other direction.** Pins say what a repository consumes;
  * `artifacts`, `artifactDependents` and `repositoryDependents` say what consumes it, read off the
@@ -36,8 +38,7 @@ import type {
  * cross-origin, leave the cookie behind, and answer 401 with nothing on screen to explain it.
  *
  * **Failures are thrown, not described.** An `HttpErrorResponse` reaching a caller still holds the
- * service's `{"message": …}` body; `ui/loadable.ts` is the one place that body is read. The one
- * status a caller reads rather than reports is the 409 a second bump for a busy group gets.
+ * service's `{"message": …}` body; `ui/loadable.ts` is the one place that body is read.
  */
 @Injectable({ providedIn: 'root' })
 export class MaintenanceApi {
@@ -156,22 +157,6 @@ export class MaintenanceApi {
     const body = repository ? { scope, repository } : { scope };
     return firstValueFrom(
       this.http.post<AcceptedDto>(`${this.base}/maintenance/api/scans`, body),
-    );
-  }
-
-  /**
-   * Ask for a group's maintenance branch now.
-   *
-   * A 409 means a bump for this repository and group is already active. That is the service's rule
-   * working, not a failure, and it reaches the caller as an `HttpErrorResponse` so the page can say
-   * so in a sentence.
-   */
-  startBump(repository: string, group: string): Promise<AcceptedDto> {
-    return firstValueFrom(
-      this.http.post<AcceptedDto>(
-        `${this.repositoryUrl(repository)}/groups/${encodeURIComponent(group)}/bumps`,
-        {},
-      ),
     );
   }
 
