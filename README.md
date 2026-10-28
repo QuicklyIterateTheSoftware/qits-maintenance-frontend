@@ -193,12 +193,12 @@ more. Note what that pipeline installs from: the npm proxy behind it is qits-pla
 the `@qits` scope comes from qits-artifacts — so a run here cannot be green while either service is
 down.
 
-Installing on a developer machine needs a credential, and it is not in this repository. Every read
-through the edge authenticates, so both registries answer 401 without one; `.npmrc` here carries the
-routing only, and the `_auth` line comes from your own `~/.npmrc`, minted for your commissioned
-workstation client. With the registries unreachable — or the workstation credential expired, which
-it is after a re-bootstrap — `npm ci --offline` installs the whole tree from the npm cache, because
-this lockfile is the orchestrator SPA's dependency set exactly.
+Installing on a developer machine needs a registry credential, and it is not in this repository:
+`.npmrc` here carries the routing only. `qits help guide --for workstation` sets up the credential
+(`qits registry-login --configure`). With the registries unreachable — or the workstation credential
+expired, which it is after a re-bootstrap — `npm ci --offline` installs the whole tree from the npm
+cache, because this lockfile is the orchestrator SPA's dependency set exactly. CI takes both the
+addresses and the credential from the step environment.
 
 ## Running unit tests
 
