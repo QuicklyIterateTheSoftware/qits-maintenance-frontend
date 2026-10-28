@@ -197,8 +197,7 @@ Installing on a developer machine needs a registry credential, and it is not in 
 `.npmrc` here carries the routing only. `qits help guide --for workstation` sets up the credential
 (`qits registry-login --configure`). With the registries unreachable — or the workstation credential
 expired, which it is after a re-bootstrap — `npm ci --offline` installs the whole tree from the npm
-cache, because this lockfile is the orchestrator SPA's dependency set exactly. CI takes both the
-addresses and the credential from the step environment.
+cache, because this lockfile is the orchestrator SPA's dependency set exactly.
 
 ## Running unit tests
 
