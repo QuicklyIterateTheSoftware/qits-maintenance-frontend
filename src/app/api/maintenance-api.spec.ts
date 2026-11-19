@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { MaintenanceApi } from './maintenance-api';
 
 /**
- * The nine calls, at the addresses qits-platform-maintenance serves them at.
+ * The eight calls, at the addresses qits-platform-maintenance serves them at.
  *
  * The assertions worth having are the ones that are invisible on screen when they are wrong:
  * **every path is relative**, because a configured origin would leave the edge's session cookie
@@ -45,36 +45,6 @@ describe('MaintenanceApi', () => {
     request.flush({ name: 'qits-ci', pins: [{ name: '@qits/angular' }] });
 
     expect((await repository).pins).toHaveLength(1);
-  });
-
-  it('searches dependencies by a glob in a query parameter, never in the path', async () => {
-    const dependencies = api.dependencies('@qits/*');
-
-    const request = http.expectOne(
-      (candidate) => candidate.url === '/maintenance/api/dependencies',
-    );
-    expect(request.request.method).toBe('GET');
-    expect(request.request.params.get('name')).toBe('@qits/*');
-    request.flush([{ ecosystem: 'npm', name: '@qits/angular', latest: '2026.8.4', pins: [] }]);
-
-    expect((await dependencies)[0].name).toBe('@qits/angular');
-  });
-
-  /** The half of the inventory is the service's filter; it is sent only when one was asked for. */
-  it('narrows a dependency search to one kind, and only when asked', async () => {
-    const external = api.dependencies('io.quarkus:*', 'EXTERNAL');
-    const narrowed = http.expectOne(
-      (candidate) => candidate.url === '/maintenance/api/dependencies',
-    );
-    expect(narrowed.request.params.get('kind')).toBe('EXTERNAL');
-    narrowed.flush([]);
-    await external;
-
-    const everything = api.dependencies('*');
-    const wide = http.expectOne((candidate) => candidate.url === '/maintenance/api/dependencies');
-    expect(wide.request.params.has('kind')).toBe(false);
-    wide.flush([]);
-    await everything;
   });
 
   it('asks what consumes a repository at the repository’s own address', async () => {

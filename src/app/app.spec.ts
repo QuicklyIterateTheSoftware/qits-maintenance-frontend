@@ -92,12 +92,13 @@ describe('App', () => {
     http.verify();
   });
 
-  it('routes the external dependency search, which asks for nothing until it is asked', async () => {
+  /** The external dependency search moved into the landing app at qits-2331; this is its hop out. */
+  it('routes the legacy external dependency search to the redirect, inside the layout', async () => {
     const harness = await RouterTestingHarness.create('/external/dependencies');
     await harness.fixture.whenStable();
 
     const layout = harness.routeNativeElement as HTMLElement;
-    expect(layout.querySelector('main app-dependencies-page')).not.toBeNull();
+    expect(layout.querySelector('main app-dependencies-redirect')).not.toBeNull();
     http.verify();
   });
 

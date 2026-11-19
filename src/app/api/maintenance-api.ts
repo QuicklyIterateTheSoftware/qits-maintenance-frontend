@@ -6,9 +6,7 @@ import type {
   AcceptedDto,
   AdoptionJourneyDto,
   BumpDto,
-  DependencyDto,
   DownstreamDto,
-  InventorySection,
   RepositoryDependentsDto,
   RepositoryDetailDto,
   RepositoryDto,
@@ -18,7 +16,7 @@ import type {
 /**
  * Everything this app says to qits-platform-maintenance, through the edge, at `/maintenance/api`.
  *
- * **Eight reads and one write, and the write is the point of the application.** A scan refreshes
+ * **Seven reads and one write, and the write is the point of the application.** A scan refreshes
  * what the platform pins and what the registries hold, and answers 202: the work is accepted, not
  * finished, and every page re-reads for anything else. Asking for a group's branch by hand is gone
  * with it — `qits-1133` moved that into the `dependency-bump` release-request automation, which this
@@ -30,7 +28,8 @@ import type {
  * the end of the chain rather than one hop. Nothing in that half is editable, and none of it is
  * polled. (The internal dependency listing read the same bills of materials through `artifacts`
  * and `artifactDependents`, retired with the page itself when it moved to the landing app at
- * qits-2330.)
+ * qits-2330; the external dependency search read the forward direction through `dependencies`,
+ * retired the same way at qits-2331.)
  *
  * **Every path is relative.** The SPA is served at `/maintenance/` by the service itself, behind
  * the edge that serves `/maintenance/api/…`, so a same-origin absolute path is what lets the
@@ -55,27 +54,6 @@ export class MaintenanceApi {
   /** One repository with every pin its manifests hold, and what its artifacts contain. */
   repository(name: string): Promise<RepositoryDetailDto> {
     return firstValueFrom(this.http.get<RepositoryDetailDto>(this.repositoryUrl(name)));
-  }
-
-  /**
-   * Who pins what, for dependency names matching a glob.
-   *
-   * The glob is the service's to interpret — `@qits/*`, `eu.wohlben.qits:qits-eventstream` — and is
-   * sent as a query parameter rather than a path segment, because a name holds slashes and colons
-   * and a reader types both.
-   *
-   * `kind` narrows the answer to one half of the inventory, and is the service's filter rather than
-   * a filter applied here: a page that dropped rows after the fact would still be paying for them,
-   * and would disagree with its own caption about how many there are.
-   */
-  dependencies(name: string, kind?: InventorySection): Promise<readonly DependencyDto[]> {
-    let params = new HttpParams().set('name', name);
-    if (kind) {
-      params = params.set('kind', kind);
-    }
-    return firstValueFrom(
-      this.http.get<DependencyDto[]>(`${this.base}/maintenance/api/dependencies`, { params }),
-    );
   }
 
   /** What consumes a repository's own artifacts — the other direction of its pins. */
@@ -105,9 +83,9 @@ export class MaintenanceApi {
   /**
    * How far one release has travelled: who is downstream of it, and which of them have taken it.
    *
-   * Both halves are query parameters rather than segments, for the same reason `dependencies`
-   * gives for its own glob: a version is safe in a path but a repository name need not be, and the
-   * pair is one question — the service answers 400 to half of it.
+   * Both halves are query parameters rather than segments: a repository name can hold slashes and
+   * colons same as a glob would, and a version is safe in a path but a repository name need not
+   * be — the pair is one question, and the service answers 400 to half of it.
    *
    * **There is no 404 to handle.** The answer is derived from the dependency graph rather than read
    * out of a record that a release was tracked, so a release this service has never seen answers

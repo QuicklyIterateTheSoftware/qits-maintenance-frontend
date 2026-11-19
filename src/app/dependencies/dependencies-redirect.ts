@@ -12,7 +12,9 @@ import { QitsAppLinks } from '@qits/ui-components';
  * `/dependencies` named a search by `?ecosystem=&name=` that the landing app's dependencies screen
  * does not have, so only its `?behind=` travels (qits-2317); `/internal/dependencies` named one
  * artifact by the same two parameters, which the artifacts screen reads as its detail, so they do
- * travel there (qits-2330).
+ * travel there (qits-2330). `/external/dependencies` named the same search `/dependencies` once did,
+ * by `?name=` with `?ecosystem=` alongside it, and lands on that same dependencies screen — so only
+ * `?name=` travels, the one lens the search still has (qits-2331).
  */
 export interface DependenciesRedirectData {
   readonly landingPath: string;
@@ -22,8 +24,9 @@ export interface DependenciesRedirectData {
 /**
  * Where an old address of this application's own now goes, now that the screen it named lives in
  * the landing app instead: `/dependencies` to `/projects/<slug>/maintenance/dependencies`
- * (qits-2317), and `/internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330).
- * Both are the same one hop, differing only in the `data` the route pointing here carries — see
+ * (qits-2317), `/internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330), and
+ * `/external/dependencies` back to `/projects/<slug>/maintenance/dependencies` (qits-2331). All
+ * three are the same one hop, differing only in the `data` the route pointing here carries — see
  * {@link DependenciesRedirectData}.
  *
  * **The project comes from the route, not from `QITS_SCOPE`.** Every other page in this

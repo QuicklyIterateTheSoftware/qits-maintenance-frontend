@@ -182,27 +182,6 @@ export interface RepositoryDetailDto extends RepositoryDto {
   readonly transitives: readonly TransitiveDto[];
 }
 
-/** Who pins a dependency, at what version, and whether a bump would move that line. */
-export interface DependencyPinDto {
-  readonly repository: string;
-  readonly version: string;
-  readonly manifestPath: string;
-  /** The service's own verdict, and the same one the bump uses. Never a comparison made here. */
-  readonly pending: boolean;
-}
-
-/** One dependency across the whole catalog — the "who still pins this" answer. */
-export interface DependencyDto {
-  readonly ecosystem: string;
-  readonly name: string;
-  readonly latest: string | null;
-  /** When the registry was last asked, or null when it never was. */
-  readonly checkedAt?: string | null;
-  /** Why the last ask failed, or null when it did not. */
-  readonly error?: string | null;
-  readonly pins: readonly DependencyPinDto[];
-}
-
 /** One artifact of ours that embeds another — the newest release of it, and what it shipped. */
 export interface DependentDto {
   readonly artifactEcosystem: string;

@@ -18,10 +18,10 @@ import { QITS_SCHEDULER } from './ui/scheduler';
  * The URL grammar, asserted where it is cheapest to get wrong: every page is reachable twice — at
  * the root of this host and under a project slug — this app's own first segments still win, and the
  * two `redirectTo` entries land where they say they do, including the retired `trains/by-release/…`,
- * which carries both of its parameters into the adoption journey that replaced it. `/dependencies`
- * and `internal/dependencies` are a different kind of redirect — a full-page hop to the landing app
- * — and are only checked here for reaching the right component; `dependencies-redirect.spec.ts`
- * covers what each forwards.
+ * which carries both of its parameters into the adoption journey that replaced it. `/dependencies`,
+ * `internal/dependencies` and `external/dependencies` are a different kind of redirect — a
+ * full-page hop to the landing app — and are only checked here for reaching the right component;
+ * `dependencies-redirect.spec.ts` covers what each forwards.
  *
  * `app.spec.ts` asserts what the shell draws. This file asserts only that an address reaches the
  * page it names, in both forms.
@@ -91,12 +91,18 @@ describe('routes', () => {
     );
   });
 
-  it('serves the external dependency search under a project slug', async () => {
-    const harness = await RouterTestingHarness.create('/qits/external/dependencies');
+  /**
+   * The address the external dependency search had before it moved into the landing app
+   * (qits-2331). What it forwards and drops is `dependencies-redirect.spec.ts`'s job to assert;
+   * this only checks that the address still resolves, to the redirect screen rather than to a page
+   * of this application, including under a project slug.
+   */
+  it('serves the legacy external/dependencies as a redirect out to the landing app', async () => {
+    const harness = await RouterTestingHarness.create('/qits/external/dependencies?name=@qits/*');
     await harness.fixture.whenStable();
 
     expect(
-      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-page'),
+      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-redirect'),
     ).not.toBeNull();
   });
 
@@ -136,7 +142,7 @@ describe('routes', () => {
     await harness.fixture.whenStable();
 
     expect(
-      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-page'),
+      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-redirect'),
     ).not.toBeNull();
   });
 
@@ -222,7 +228,8 @@ describe('routes', () => {
   });
 
   it('names the scoped project in the header', async () => {
-    const harness = await RouterTestingHarness.create('/qits/external/dependencies');
+    const harness = await RouterTestingHarness.create('/qits/external');
+    http.expectOne('/maintenance/api/repositories').flush([]);
     await harness.fixture.whenStable();
 
     expect(
@@ -231,7 +238,8 @@ describe('routes', () => {
   });
 
   it('names no project at the root, where the address scopes nothing', async () => {
-    const harness = await RouterTestingHarness.create('/external/dependencies');
+    const harness = await RouterTestingHarness.create('/external');
+    http.expectOne('/maintenance/api/repositories').flush([]);
     await harness.fixture.whenStable();
 
     expect((harness.routeNativeElement as HTMLElement).querySelector('.project-scope')).toBeNull();

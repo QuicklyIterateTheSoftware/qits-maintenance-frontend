@@ -6,8 +6,9 @@ import { provideQitsNavigationTree, type QitsNavigation } from '@qits/ui-compone
 import { DependenciesRedirect, type DependenciesRedirectData } from './dependencies-redirect';
 
 /**
- * Where an old bookmark to this app's own `/dependencies` and `internal/dependencies` — and their
- * `/<project>/…` forms — lands, now that the views they named live in the landing app.
+ * Where an old bookmark to this app's own `/dependencies`, `internal/dependencies` and
+ * `external/dependencies` — and their `/<project>/…` forms — lands, now that the views they named
+ * live in the landing app.
  *
  * **No router here, on purpose.** The component reads its one route parameter off
  * `ActivatedRoute.snapshot.parent`, which is a plain object this suite can shape directly — mounting
@@ -45,6 +46,12 @@ describe('DependenciesRedirect', () => {
   const ARTIFACTS_DATA: DependenciesRedirectData = {
     landingPath: 'maintenance/artifacts',
     forward: ['ecosystem', 'name'],
+  };
+
+  /** The route `data` `external/dependencies` carries, since qits-2331. */
+  const EXTERNAL_SEARCH_DATA: DependenciesRedirectData = {
+    landingPath: 'maintenance/dependencies',
+    forward: ['name'],
   };
 
   /** `project` left out is this app's own unscoped address, whose route names no project. */
@@ -160,6 +167,38 @@ describe('DependenciesRedirect', () => {
 
       expect(replace).toHaveBeenCalledWith(
         'https://qits.example.test/projects/qits/maintenance/artifacts',
+      );
+    });
+  });
+
+  describe('external/dependencies, forwarding to maintenance/dependencies (qits-2331)', () => {
+    it('redirects to the landing app’s dependency search, forwarding the name and dropping the ecosystem', () => {
+      mount({
+        data: EXTERNAL_SEARCH_DATA,
+        project: 'qits',
+        query: { name: '@angular/*', ecosystem: 'npm' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledOnce();
+      const [url] = replace.mock.calls[0] as [string];
+      expect(url).toBe(
+        'https://qits.example.test/projects/qits/maintenance/dependencies?name=%40angular%2F*',
+      );
+      const destination = new URL(url);
+      expect(decodeURIComponent(destination.searchParams.get('name') ?? '')).toBe('@angular/*');
+      expect(destination.searchParams.has('ecosystem')).toBe(false);
+    });
+
+    it('lands on the same project when the address names none, under the scoped /qits/external/dependencies form', () => {
+      mount({
+        data: EXTERNAL_SEARCH_DATA,
+        query: { name: '@angular/*', ecosystem: 'npm' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/dependencies?name=%40angular%2F*',
       );
     });
   });

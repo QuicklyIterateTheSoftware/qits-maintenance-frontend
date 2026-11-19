@@ -4,20 +4,21 @@ The maintenance frontend: what every repository in the catalog pins, what the re
 released since, what the platform's own releases already ship, which maintenance branches are
 waiting, and how far each of our own releases has travelled downstream. Served by
 qits-platform-maintenance at the root of `maintenance.<env>.<domain>` through Quinoa. Ten
-addresses — six pages, two redirects and two full-page hops out to the landing app — all inside the
-platform chrome, and each of them reachable under a project slug as well.
+addresses — five pages, two redirects and three full-page hops out to the landing app — all inside
+the platform chrome, and each of them reachable under a project slug as well.
 
 **The first segment is the section, and it is the organising idea of the application.** `internal`
 is what this platform publishes and can release; `external` is what the world publishes and
 qits-platform-mirror caches. Both used to have the same two views, because they were different
 questions asked by different readers — internal is release work, external is patching — until
-qits-2330 moved the internal dependency view into the landing app; `external` still has both.
+qits-2330 moved the internal dependency view into the landing app and qits-2331 moved the external
+one there too; both sections now show only their repository listing here.
 
 - **`/internal`** — every repository, with its internal groups as chips: last scan, status, how
   many pins are behind. One button starts an internal scan.
-- **`/external`** and **`/external/dependencies?name=<glob>`** — the repository listing and the
-  dependency search of the world's side. The search is the page that answers "who is still on
-  Quarkus 3.29".
+- **`/external`** — the repository listing of the world's side: every repository, with its
+  external pins as chips and how many are behind, the same shape as `/internal` for the other
+  direction.
 - **`/repositories/<name>`** — section-neutral: internal pins and external pins as two tables, what
   those pins drag in underneath them, what the platform already ships that contains this
   repository's artifacts, everything downstream of it to the end of the chain, a panel per group
@@ -47,6 +48,12 @@ qits-2330 moved the internal dependency view into the landing app; `external` st
   `/projects/<slug>/maintenance/artifacts`, and this address now exists only to carry an old bookmark
   there: it forwards `?ecosystem=` and `?name=`, resolving `<slug>` the same way `/dependencies`
   does (qits-2330).
+- **`/external/dependencies`** — the world's dependency search's own address, no longer a screen of
+  this application either. It moved into the landing app, at the same
+  `/projects/<slug>/maintenance/dependencies` that `/dependencies` already redirects to, and this
+  address now exists only to carry an old bookmark there: it forwards `?name=`, drops `?ecosystem=`
+  (a lens that screen does not have), and resolves `<slug>` the same way the other two do
+  (qits-2331).
 
 ## The project in the address
 
@@ -65,9 +72,9 @@ query.
 
 **Behind is the service's word, never a comparison made here.** Maven, npm and OCI tags order
 differently, and a client that decided `2026.8.10` is behind `2026.8.9` would highlight rows the
-service is not going to move. The `pending` flag on a pin is the same answer a bump uses, and it
-is what the external search highlights too — it used to compare two strings itself, and disagreed
-with the branch the service actually writes.
+service is not going to move. The `pending` flag on a pin is the same answer a bump uses, and it is
+what the external search highlighted too, before it moved into the landing app (qits-2331) — it
+used to compare two strings itself, and disagreed with the branch the service actually writes.
 
 The one comparison this application does make is **equality**, in the dependents table: a release
 either embeds the same string the registry calls latest or it does not. Equality needs no ordering.
@@ -119,18 +126,18 @@ option: same-origin sends the cookie by default.
 
 ## The contract it consumes
 
-Nine calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"). A tenth —
+Eight calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"). A ninth —
 `POST /repositories/{name}/groups/{group}/bumps`, asking for a group's branch by hand — answers
 `410` now and is on its way to `404`; `qits-1133` retired it, and nothing here calls it any more.
 Two more — `GET /dependencies/dependents` and `GET /artifacts`, which the internal dependency
-listing read — went with that page itself when it moved into the landing app at qits-2330; this
-application no longer calls either.
+listing read — went with that page itself when it moved into the landing app at qits-2330, and a
+fourth — `GET /dependencies`, which the external dependency search read — went with that page the
+same way at qits-2331; this application no longer calls any of the three.
 
 ```
 GET  /maintenance/api/repositories                                  → [{name, project, lastScanAt, headSha, status, message, pending, groups:[{name, source, kind, branch, state, headSha, pending}]}]
 GET  /maintenance/api/repositories/{name}                           → repository + pins:[…] + transitives:[{ecosystem, name, version, via, behind}]
 GET  /maintenance/api/repositories/{name}/dependents                → {repository, artifacts:[{ecosystem, name, dependents:[…]}]}
-GET  /maintenance/api/dependencies?name=<glob>&kind=INTERNAL|EXTERNAL → [{ecosystem, name, latest, checkedAt, error, pins:[{repository, version, manifestPath, pending}]}]
 POST /maintenance/api/scans {scope, repository?}                    → 202 {id}
 GET  /maintenance/api/bumps?repository=&limit=20                    → [bump rows]
 GET  /maintenance/api/bumps/{id}                                    → one bump row
