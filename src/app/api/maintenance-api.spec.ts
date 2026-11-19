@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { MaintenanceApi } from './maintenance-api';
 
 /**
- * The eleven calls, at the addresses qits-platform-maintenance serves them at.
+ * The nine calls, at the addresses qits-platform-maintenance serves them at.
  *
  * The assertions worth having are the ones that are invisible on screen when they are wrong:
  * **every path is relative**, because a configured origin would leave the edge's session cookie
@@ -75,31 +75,6 @@ describe('MaintenanceApi', () => {
     expect(wide.request.params.has('kind')).toBe(false);
     wide.flush([]);
     await everything;
-  });
-
-  it('lists what the platform publishes, as a bare array', async () => {
-    const artifacts = api.artifacts();
-
-    const request = http.expectOne('/maintenance/api/artifacts');
-    expect(request.request.method).toBe('GET');
-    request.flush([{ ecosystem: 'npm', name: '@qits/ui-components', dependentCount: 4 }]);
-
-    expect((await artifacts)[0].name).toBe('@qits/ui-components');
-  });
-
-  /** A name holds a slash and a coordinate holds a colon, so neither half is ever a path segment. */
-  it('asks what embeds a dependency with both halves as query parameters', async () => {
-    const dependents = api.artifactDependents('npm', '@qits/ui-components');
-
-    const request = http.expectOne(
-      (candidate) => candidate.url === '/maintenance/api/dependencies/dependents',
-    );
-    expect(request.request.method).toBe('GET');
-    expect(request.request.params.get('ecosystem')).toBe('npm');
-    expect(request.request.params.get('name')).toBe('@qits/ui-components');
-    request.flush({ ecosystem: 'npm', name: '@qits/ui-components', latest: '1', dependents: [] });
-
-    expect((await dependents).latest).toBe('1');
   });
 
   it('asks what consumes a repository at the repository’s own address', async () => {

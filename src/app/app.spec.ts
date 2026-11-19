@@ -101,13 +101,13 @@ describe('App', () => {
     http.verify();
   });
 
-  it('routes the internal dependency listing, which reads the artifacts on arrival', async () => {
+  /** The internal dependency listing moved into the landing app at qits-2330; this is its hop out. */
+  it('routes the legacy internal dependency listing to the redirect, inside the layout', async () => {
     const harness = await RouterTestingHarness.create('/internal/dependencies');
-    http.expectOne('/maintenance/api/artifacts').flush([]);
     await harness.fixture.whenStable();
 
     const layout = harness.routeNativeElement as HTMLElement;
-    expect(layout.querySelector('main app-internal-dependencies-page')).not.toBeNull();
+    expect(layout.querySelector('main app-dependencies-redirect')).not.toBeNull();
     http.verify();
   });
 

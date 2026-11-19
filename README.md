@@ -4,21 +4,20 @@ The maintenance frontend: what every repository in the catalog pins, what the re
 released since, what the platform's own releases already ship, which maintenance branches are
 waiting, and how far each of our own releases has travelled downstream. Served by
 qits-platform-maintenance at the root of `maintenance.<env>.<domain>` through Quinoa. Ten
-addresses — seven pages, two redirects and one full-page hop out to the landing app — all inside the
+addresses — six pages, two redirects and two full-page hops out to the landing app — all inside the
 platform chrome, and each of them reachable under a project slug as well.
 
 **The first segment is the section, and it is the organising idea of the application.** `internal`
 is what this platform publishes and can release; `external` is what the world publishes and
-qits-platform-mirror caches. Each has the same two views, because they are different questions asked
-by different readers: internal is release work, external is patching.
+qits-platform-mirror caches. Both used to have the same two views, because they were different
+questions asked by different readers — internal is release work, external is patching — until
+qits-2330 moved the internal dependency view into the landing app; `external` still has both.
 
 - **`/internal`** — every repository, with its internal groups as chips: last scan, status, how
   many pins are behind. One button starts an internal scan.
-- **`/internal/dependencies`** — everything the platform publishes, how far each library's reach
-  goes and how much of that reach is stale. `?ecosystem=&name=` opens one of them and lists what
-  still ships an old copy of it. Built from bills of materials, not from manifests.
-- **`/external`** and **`/external/dependencies?name=<glob>`** — the same two views of the world's
-  side. The search is the page that answers "who is still on Quarkus 3.29".
+- **`/external`** and **`/external/dependencies?name=<glob>`** — the repository listing and the
+  dependency search of the world's side. The search is the page that answers "who is still on
+  Quarkus 3.29".
 - **`/repositories/<name>`** — section-neutral: internal pins and external pins as two tables, what
   those pins drag in underneath them, what the platform already ships that contains this
   repository's artifacts, everything downstream of it to the end of the chain, a panel per group
@@ -43,6 +42,11 @@ by different readers: internal is release work, external is patching.
   bookmark there: it forwards `?behind=`, drops `?ecosystem=` and `?name=` (lenses the landing screen
   does not have), and resolves `<slug>` from the `:project` segment of the address it was given, or
   `qits` where there was none (qits-2317).
+- **`/internal/dependencies`** — the internal dependency listing's own address, no longer a screen
+  of this application either. It moved into the landing app, at
+  `/projects/<slug>/maintenance/artifacts`, and this address now exists only to carry an old bookmark
+  there: it forwards `?ecosystem=` and `?name=`, resolving `<slug>` the same way `/dependencies`
+  does (qits-2330).
 
 ## The project in the address
 
@@ -115,17 +119,18 @@ option: same-origin sends the cookie by default.
 
 ## The contract it consumes
 
-Eleven calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"). A twelfth —
+Nine calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"). A tenth —
 `POST /repositories/{name}/groups/{group}/bumps`, asking for a group's branch by hand — answers
 `410` now and is on its way to `404`; `qits-1133` retired it, and nothing here calls it any more.
+Two more — `GET /dependencies/dependents` and `GET /artifacts`, which the internal dependency
+listing read — went with that page itself when it moved into the landing app at qits-2330; this
+application no longer calls either.
 
 ```
 GET  /maintenance/api/repositories                                  → [{name, project, lastScanAt, headSha, status, message, pending, groups:[{name, source, kind, branch, state, headSha, pending}]}]
 GET  /maintenance/api/repositories/{name}                           → repository + pins:[…] + transitives:[{ecosystem, name, version, via, behind}]
 GET  /maintenance/api/repositories/{name}/dependents                → {repository, artifacts:[{ecosystem, name, dependents:[…]}]}
 GET  /maintenance/api/dependencies?name=<glob>&kind=INTERNAL|EXTERNAL → [{ecosystem, name, latest, checkedAt, error, pins:[{repository, version, manifestPath, pending}]}]
-GET  /maintenance/api/dependencies/dependents?ecosystem=&name=      → {ecosystem, name, latest, dependents:[{artifactEcosystem, artifactName, artifactVersion, repository, embeddedVersion, direct, occurredAt, sbomStatus}]}
-GET  /maintenance/api/artifacts                                     → [{ecosystem, name, repository, latest, version, occurredAt, sbomStatus, dependentCount, behindCount}]
 POST /maintenance/api/scans {scope, repository?}                    → 202 {id}
 GET  /maintenance/api/bumps?repository=&limit=20                    → [bump rows]
 GET  /maintenance/api/bumps/{id}                                    → one bump row

@@ -203,27 +203,6 @@ export interface DependencyDto {
   readonly pins: readonly DependencyPinDto[];
 }
 
-/**
- * One thing this platform publishes, as the internal listing shows it.
- *
- * `dependentCount` and `behindCount` are the two numbers that page exists for: how far a library's
- * reach goes, and how much of that reach is stale. Both are counted over the newest released
- * version of each dependent, because that is the only one anybody can still do anything about.
- */
-export interface ArtifactDto {
-  readonly ecosystem: string;
-  readonly name: string;
-  /** Which repository produced the newest release of it. */
-  readonly repository: string;
-  readonly latest: string | null;
-  /** The newest version this service has a release row for. */
-  readonly version: string;
-  readonly occurredAt: string | null;
-  readonly sbomStatus: SbomStatus;
-  readonly dependentCount: number;
-  readonly behindCount: number;
-}
-
 /** One artifact of ours that embeds another — the newest release of it, and what it shipped. */
 export interface DependentDto {
   readonly artifactEcosystem: string;
@@ -237,14 +216,6 @@ export interface DependentDto {
   readonly direct: boolean;
   readonly occurredAt: string | null;
   readonly sbomStatus: SbomStatus;
-}
-
-/** Everything that embeds one dependency — `GET /dependencies/dependents`. */
-export interface DependentsDto {
-  readonly ecosystem: string;
-  readonly name: string;
-  readonly latest: string | null;
-  readonly dependents: readonly DependentDto[];
 }
 
 /** One artifact of a repository, with what embeds it. */

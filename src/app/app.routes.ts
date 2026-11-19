@@ -4,15 +4,16 @@ import { DependenciesRedirect } from './dependencies/dependencies-redirect';
 import { NotFound } from './not-found/not-found';
 
 /**
- * Ten addresses, all of them inside the platform chrome; two are `redirectTo` entries and a third,
- * `/dependencies`, is a full-page hop out of this application entirely.
+ * Ten addresses, all of them inside the platform chrome; two are `redirectTo` entries and two
+ * others — `internal/dependencies` and `dependencies` — are full-page hops out of this application
+ * entirely.
  *
  * **The first segment is the SECTION, and it is the organising idea of the whole application.**
  * `internal` is what this platform publishes and can release; `external` is what the world
- * publishes and qits-platform-mirror caches. Each has the same two views — a repository listing and
- * a dependency view — and they are different addresses rather than a toggle, because they are
- * different questions asked by different readers, and because the answer to one of them is a link
- * worth pasting on its own.
+ * publishes and qits-platform-mirror caches. Both used to carry the same two views — a repository
+ * listing and a dependency view — until qits-2330 moved the internal one into the landing app;
+ * `external` still has both, because they are different questions asked by different readers, and
+ * because the answer to one of them is a link worth pasting on its own.
  *
  * **The section reaches the page as route `data`, never as a parameter.** `RepositoriesPage` serves
  * both listings, and a literal in the table is what keeps `/internal` from being one more string a
@@ -44,16 +45,22 @@ import { NotFound } from './not-found/not-found';
  * one of this app's segments any more, so it reads as a project of that name — the same answer any
  * unknown first segment gets, and the one the reader of a stale bookmark can act on.
  *
- * **The dependency views' state is in query parameters, not segments.** `?name=@qits/*` on the
- * external search, `?ecosystem=&name=` on the internal one: both hold slashes, colons and
- * asterisks, and a query parameter is what makes the back button mean "the previous question".
+ * **The external dependency search's state is in query parameters, not a segment.**
+ * `?name=@qits/*` holds slashes, colons and asterisks, and a query parameter is what makes the
+ * back button mean "the previous question". The internal dependency view used the same shape
+ * before it moved out (below); what it forwards now travels as query parameters still, just one
+ * hop further on.
  *
- * **`/dependencies` later went the other way.** The dependency view moved into the landing app, at
- * `/projects/<slug>/maintenance/dependencies`, so this address is now {@link DependenciesRedirect}:
- * a full-page hop to that screen, carrying `?behind=` across and dropping everything else — the old
- * `?ecosystem=` and `?name=` named a search that screen does not have (qits-2317). Old bookmarks to
- * either form of this app's own `/dependencies` still work; they just do not land on a screen of
- * this application any more.
+ * **`/dependencies` and `internal/dependencies` both later went the other way.** The dependency
+ * views they named moved into the landing app — `/dependencies` to
+ * `/projects/<slug>/maintenance/dependencies` (qits-2317), `internal/dependencies` to
+ * `/projects/<slug>/maintenance/artifacts` (qits-2330) — so both addresses are now
+ * {@link DependenciesRedirect}: a full-page hop to the screen that replaced them. Each route's own
+ * `data` says which screen it goes to and which query parameters still mean something there —
+ * `?behind=` for the first, `?ecosystem=` and `?name=` for the second — and {@link
+ * DependenciesRedirect} drops everything else as something the destination cannot act on. Old
+ * bookmarks to either form of either address still work; they just do not land on a screen of this
+ * application any more.
  *
  * **Every one of these is a deep link a reader will paste.** They survive a reload only because
  * qits-platform-maintenance sets `quarkus.quinoa.enable-spa-routing=true`, which answers an unknown
@@ -62,10 +69,13 @@ import { NotFound } from './not-found/not-found';
  */
 const OWN: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'internal' },
+  // The address the internal dependency listing had before it moved into the landing app, as
+  // `/projects/<slug>/maintenance/artifacts` (qits-2330). Only the coordinate still travels.
   {
     path: 'internal/dependencies',
-    loadComponent: () =>
-      import('./dependencies/internal-dependencies-page').then((m) => m.InternalDependenciesPage),
+    pathMatch: 'full',
+    component: DependenciesRedirect,
+    data: { landingPath: 'maintenance/artifacts', forward: ['ecosystem', 'name'] },
   },
   {
     path: 'internal',
@@ -100,7 +110,12 @@ const OWN: Routes = [
     redirectTo: 'adoption/:repository/:version',
   },
   // The address the dependency search had before it moved into the landing app.
-  { path: 'dependencies', pathMatch: 'full', component: DependenciesRedirect },
+  {
+    path: 'dependencies',
+    pathMatch: 'full',
+    component: DependenciesRedirect,
+    data: { landingPath: 'maintenance/dependencies', forward: ['behind'] },
+  },
 ];
 
 /**

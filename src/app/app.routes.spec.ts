@@ -19,8 +19,9 @@ import { QITS_SCHEDULER } from './ui/scheduler';
  * the root of this host and under a project slug — this app's own first segments still win, and the
  * two `redirectTo` entries land where they say they do, including the retired `trains/by-release/…`,
  * which carries both of its parameters into the adoption journey that replaced it. `/dependencies`
- * is a third, different kind of redirect — a full-page hop to the landing app — and is only checked
- * here for reaching the right component; `dependencies-redirect.spec.ts` covers what it forwards.
+ * and `internal/dependencies` are a different kind of redirect — a full-page hop to the landing app
+ * — and are only checked here for reaching the right component; `dependencies-redirect.spec.ts`
+ * covers what each forwards.
  *
  * `app.spec.ts` asserts what the shell draws. This file asserts only that an address reaches the
  * page it names, in both forms.
@@ -99,13 +100,18 @@ describe('routes', () => {
     ).not.toBeNull();
   });
 
-  it('serves the internal dependency listing under a project slug', async () => {
-    const harness = await RouterTestingHarness.create('/qits/internal/dependencies');
-    http.expectOne('/maintenance/api/artifacts').flush([]);
+  /**
+   * The address the internal dependency listing had before it moved into the landing app
+   * (qits-2330). What it forwards and drops is `dependencies-redirect.spec.ts`'s job to assert;
+   * this only checks that the address still resolves, to the redirect screen rather than to a page
+   * of this application, including under a project slug.
+   */
+  it('serves the legacy internal/dependencies as a redirect out to the landing app', async () => {
+    const harness = await RouterTestingHarness.create('/qits/internal/dependencies?name=@qits/*');
     await harness.fixture.whenStable();
 
     expect(
-      (harness.routeNativeElement as HTMLElement).querySelector('app-internal-dependencies-page'),
+      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-redirect'),
     ).not.toBeNull();
   });
 

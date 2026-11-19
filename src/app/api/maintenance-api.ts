@@ -5,10 +5,8 @@ import { QITS_API_BASE } from './api-base';
 import type {
   AcceptedDto,
   AdoptionJourneyDto,
-  ArtifactDto,
   BumpDto,
   DependencyDto,
-  DependentsDto,
   DownstreamDto,
   InventorySection,
   RepositoryDependentsDto,
@@ -20,17 +18,19 @@ import type {
 /**
  * Everything this app says to qits-platform-maintenance, through the edge, at `/maintenance/api`.
  *
- * **Ten reads and one write, and the write is the point of the application.** A scan refreshes what
- * the platform pins and what the registries hold, and answers 202: the work is accepted, not
+ * **Eight reads and one write, and the write is the point of the application.** A scan refreshes
+ * what the platform pins and what the registries hold, and answers 202: the work is accepted, not
  * finished, and every page re-reads for anything else. Asking for a group's branch by hand is gone
  * with it — `qits-1133` moved that into the `dependency-bump` release-request automation, which this
  * app has no door to and nothing here calls.
  *
- * **Five of the reads are about the other direction.** Pins say what a repository consumes;
- * `artifacts`, `artifactDependents` and `repositoryDependents` say what consumes it, read off the
- * bills of materials of what the platform has actually released, and `downstream` and
- * `adoptionByRelease` trace that direction to the end of the chain rather than one hop. Nothing in
- * that half is editable, and none of it is polled.
+ * **Three of the reads are about the other direction.** Pins say what a repository consumes;
+ * `repositoryDependents` says what consumes it, read off the bills of materials of what the
+ * platform has actually released, and `downstream` and `adoptionByRelease` trace that direction to
+ * the end of the chain rather than one hop. Nothing in that half is editable, and none of it is
+ * polled. (The internal dependency listing read the same bills of materials through `artifacts`
+ * and `artifactDependents`, retired with the page itself when it moved to the landing app at
+ * qits-2330.)
  *
  * **Every path is relative.** The SPA is served at `/maintenance/` by the service itself, behind
  * the edge that serves `/maintenance/api/…`, so a same-origin absolute path is what lets the
@@ -78,30 +78,6 @@ export class MaintenanceApi {
     );
   }
 
-  /**
-   * Everything the platform publishes, newest release first as the service orders it.
-   *
-   * The order is the SERVICE's and is not re-sorted here, for the reason `bumps` gives: a client
-   * sorting the rows would disagree with the caption above them the moment two rows tie.
-   */
-  artifacts(): Promise<readonly ArtifactDto[]> {
-    return firstValueFrom(this.http.get<ArtifactDto[]>(`${this.base}/maintenance/api/artifacts`));
-  }
-
-  /**
-   * What embeds one dependency, read off the bills of materials of what has been released.
-   *
-   * Both halves of the coordinate are query parameters and neither is a segment: an npm name holds
-   * a slash and a maven one holds a colon, and the ecosystem is what makes the pair unique.
-   */
-  artifactDependents(ecosystem: string, name: string): Promise<DependentsDto> {
-    return firstValueFrom(
-      this.http.get<DependentsDto>(`${this.base}/maintenance/api/dependencies/dependents`, {
-        params: new HttpParams().set('ecosystem', ecosystem).set('name', name),
-      }),
-    );
-  }
-
   /** What consumes a repository's own artifacts — the other direction of its pins. */
   repositoryDependents(name: string): Promise<RepositoryDependentsDto> {
     return firstValueFrom(
@@ -129,9 +105,9 @@ export class MaintenanceApi {
   /**
    * How far one release has travelled: who is downstream of it, and which of them have taken it.
    *
-   * Both halves are query parameters rather than segments, for the reason `artifactDependents`
-   * gives: a version is safe in a path but a repository name need not be, and the pair is one
-   * question — the service answers 400 to half of it.
+   * Both halves are query parameters rather than segments, for the same reason `dependencies`
+   * gives for its own glob: a version is safe in a path but a repository name need not be, and the
+   * pair is one question — the service answers 400 to half of it.
    *
    * **There is no 404 to handle.** The answer is derived from the dependency graph rather than read
    * out of a record that a release was tracked, so a release this service has never seen answers

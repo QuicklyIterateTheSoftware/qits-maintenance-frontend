@@ -4,16 +4,26 @@ import { ActivatedRoute } from '@angular/router';
 import { QitsAppLinks } from '@qits/ui-components';
 
 /**
- * The query parameters the landing app's dependencies screen still reads. `ecosystem` and `name`
- * named a search this app's own `/dependencies` had and that screen does not, so they are dropped
- * rather than forwarded as something the destination cannot act on.
+ * What a route pointing at this component hands it through `data`.
+ *
+ * `landingPath` is the screen under `/projects/<slug>/` the address moved to; `forward` names which
+ * of the old address's own query parameters still mean something there. Everything else the old
+ * address carried is dropped rather than forwarded as something the destination cannot act on —
+ * `/internal/dependencies` named `?behind=`, which the landing app's artifacts screen does not
+ * read, and `/dependencies` named `?ecosystem=&name=`, which its dependencies screen does not
+ * either (qits-2317, qits-2330).
  */
-const FORWARDED_PARAMS = ['behind'] as const;
+export interface DependenciesRedirectData {
+  readonly landingPath: string;
+  readonly forward: readonly string[];
+}
 
 /**
- * Where `/dependencies` and `/<project>/dependencies` go now that the dependency view itself lives
- * in the landing app, at `/projects/<slug>/maintenance/dependencies` — the same screen, reading the
- * same one lens.
+ * Where an old address of this application's own now goes, now that the screen it named lives in
+ * the landing app instead: `/dependencies` to `/projects/<slug>/maintenance/dependencies`
+ * (qits-2317), and `/internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330).
+ * Both are the same one hop, differing only in the `data` the route pointing here carries — see
+ * {@link DependenciesRedirectData}.
  *
  * **The project comes from the route, not from `QITS_SCOPE`.** Every other page in this
  * application reads the address through that token instead, because it also recognises the
@@ -27,9 +37,9 @@ const FORWARDED_PARAMS = ['behind'] as const;
  * come from the platform's navigation, fetched after this application started, so `link` is
  * `undefined` until one of them resolves — and stays that way forever on a platform that never
  * answers. A relative address would be wrong on every host but this one, so there is no fallback
- * that guesses it: with neither origin ever landing, this screen keeps saying where the dependency
- * view moved to without acting on it, rather than sending the reader to this host's own
- * `/projects/...`, which nothing here serves.
+ * that guesses it: with neither origin ever landing, this screen keeps saying where the view moved
+ * to without acting on it, rather than sending the reader to this host's own `/projects/...`,
+ * which nothing here serves.
  *
  * **A full-document navigation, not a router one.** The destination is a different application
  * entirely, so `Router.navigate` would compile a route this SPA does not have and go nowhere;
@@ -40,7 +50,7 @@ const FORWARDED_PARAMS = ['behind'] as const;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p>
-      The dependency view moved to the landing app:
+      This view moved to the landing app:
       @if (link(); as href) {
         <a [href]="href">{{ href }}</a>
       } @else {
@@ -54,14 +64,17 @@ export class DependenciesRedirect {
   private readonly links = inject(QitsAppLinks);
   private readonly document = inject(DOCUMENT);
 
-  /** The `:project` segment one level up, or `undefined` at this app's own unscoped `/dependencies`. */
+  /** This route's own `data` — a fixed shape, because every route pointing here declares it. */
+  private readonly data = this.route.snapshot.data as DependenciesRedirectData;
+
+  /** The `:project` segment one level up, or `undefined` at this app's own unscoped routes. */
   private readonly project = this.route.snapshot.parent?.paramMap.get('project') ?? 'qits';
 
   /** The forwarded query string, built once: this page never re-renders on a param change. */
   private readonly query = (() => {
     const params = this.route.snapshot.queryParamMap;
     const forwarded = new URLSearchParams();
-    for (const name of FORWARDED_PARAMS) {
+    for (const name of this.data.forward) {
       const value = params.get(name);
       if (value !== null) {
         forwarded.set(name, value);
@@ -70,13 +83,13 @@ export class DependenciesRedirect {
     return forwarded.toString();
   })();
 
-  /** The landing app's dependencies screen, once an origin for it is known — `undefined` until then. */
+  /** The landing app's screen this address now names, once an origin for it is known. */
   protected readonly link = computed<string | undefined>(() => {
     const origin = this.links.origin('qits-landing') ?? this.links.environmentOrigin();
     if (!origin) {
       return undefined;
     }
-    const path = `/projects/${encodeURIComponent(this.project)}/maintenance/dependencies`;
+    const path = `/projects/${encodeURIComponent(this.project)}/${this.data.landingPath}`;
     const search = this.query ? `?${this.query}` : '';
     return `${origin.replace(/\/+$/, '')}${path}${search}`;
   });
