@@ -34,14 +34,13 @@ describe('status tone', () => {
   });
 
   /**
-   * The two states of a downstream repository, and the amber PENDING already had from the SBOM
-   * column. A repository that has not taken a release yet is waiting rather than failing, and one
-   * that has is information rather than an outcome — colouring either differently would put a
-   * verdict on the ordinary course of a release travelling downstream.
+   * An artifact with no bill of materials yet is the ordinary state an hour after a release, not a
+   * fault — the same amber a downstream repository's adoption used to share before that page moved
+   * into the landing app (qits-2333).
    */
-  it('separates a repository that has taken a release from one that has not', () => {
+  it('reads an artifact with no bill of materials yet as a warning, not a failure', () => {
     expect(toneOf('PENDING')).toBe('warning');
-    expect(toneOf('ADOPTED')).toBe('info');
+    expect(toneOf('INGESTED')).toBe('success');
   });
 
   it('falls back to neutral for a status this build has never heard of', () => {

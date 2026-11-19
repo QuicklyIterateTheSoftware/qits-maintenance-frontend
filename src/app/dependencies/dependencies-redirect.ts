@@ -19,8 +19,11 @@ import { QitsAppLinks } from '@qits/ui-components';
  * `landingPath` may also carry `:param` placeholders, substituted from this route's own `paramMap`
  * rather than forwarded as a query parameter the old address never had — `bumps/:id` names the id as
  * a path segment, not a search term, so `maintenance/bumps/:id` is how the bump page's new address
- * is spelled here, with `:id` filled in and `encodeURIComponent`-escaped at read time (qits-2332). A
- * `landingPath` with no such placeholder behaves exactly as it did before that ticket.
+ * is spelled here, with `:id` filled in and `encodeURIComponent`-escaped at read time (qits-2332).
+ * `adoption/:repository/:version` carries two such placeholders rather than one — the substitution
+ * is the same regular expression either way, so `maintenance/adoption/:repository/:version` fills
+ * both in from this route's own two parameters (qits-2333). A `landingPath` with no such placeholder
+ * behaves exactly as it did before either ticket.
  */
 export interface DependenciesRedirectData {
   readonly landingPath: string;
@@ -31,9 +34,11 @@ export interface DependenciesRedirectData {
  * Where an old address of this application's own now goes, now that the screen it named lives in
  * the landing app instead: `/dependencies` to `/projects/<slug>/maintenance/dependencies`
  * (qits-2317), `/internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330),
- * `/external/dependencies` back to `/projects/<slug>/maintenance/dependencies` (qits-2331), and
- * `/bumps/:id` to `/projects/<slug>/maintenance/bumps/<id>` (qits-2332). All four are the same one
- * hop, differing only in the `data` the route pointing here carries — see
+ * `/external/dependencies` back to `/projects/<slug>/maintenance/dependencies` (qits-2331),
+ * `/bumps/:id` to `/projects/<slug>/maintenance/bumps/<id>` (qits-2332), and
+ * `/adoption/:repository/:version` to
+ * `/projects/<slug>/maintenance/adoption/<repository>/<version>` (qits-2333). All five are the same
+ * one hop, differing only in the `data` the route pointing here carries — see
  * {@link DependenciesRedirectData}.
  *
  * **The project comes from the route, not from `QITS_SCOPE`.** Every other page in this

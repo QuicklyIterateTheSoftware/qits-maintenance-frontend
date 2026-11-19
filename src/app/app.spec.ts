@@ -122,6 +122,16 @@ describe('App', () => {
     http.verify();
   });
 
+  /** The adoption page moved into the landing app at qits-2333; this is its hop out. */
+  it('routes the legacy adoption address to the redirect, inside the layout', async () => {
+    const harness = await RouterTestingHarness.create('/adoption/qits-eventstream/2026.905.1');
+    await harness.fixture.whenStable();
+
+    const layout = harness.routeNativeElement as HTMLElement;
+    expect(layout.querySelector('main app-dependencies-redirect')).not.toBeNull();
+    http.verify();
+  });
+
   it('draws an unknown URL as a page, still inside the chrome', async () => {
     // Two segments, because one is now the project form: `/nothing-here` is read as a project this
     // platform does not have, and the repositories page is the honest answer there.

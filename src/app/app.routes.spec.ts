@@ -9,7 +9,6 @@ import {
   provideQitsProjectList,
   provideQitsScope,
 } from '@qits/ui-components';
-import type { AdoptionJourneyDto } from './api/dto';
 import { routes } from './app.routes';
 import { ManualScheduler } from './testing/manual-scheduler';
 import { QITS_SCHEDULER } from './ui/scheduler';
@@ -18,10 +17,10 @@ import { QITS_SCHEDULER } from './ui/scheduler';
  * The URL grammar, asserted where it is cheapest to get wrong: every page is reachable twice — at
  * the root of this host and under a project slug — this app's own first segments still win, and the
  * two `redirectTo` entries land where they say they do, including the retired `trains/by-release/…`,
- * which carries both of its parameters into the adoption journey that replaced it. `/dependencies`,
- * `internal/dependencies` and `external/dependencies` are a different kind of redirect — a
- * full-page hop to the landing app — and are only checked here for reaching the right component;
- * `dependencies-redirect.spec.ts` covers what each forwards.
+ * which carries both of its parameters into the adoption redirect that replaced it. `/dependencies`,
+ * `internal/dependencies`, `external/dependencies` and `adoption/:repository/:version` are a
+ * different kind of redirect — a full-page hop to the landing app — and are only checked here for
+ * reaching the right component; `dependencies-redirect.spec.ts` covers what each forwards.
  *
  * `app.spec.ts` asserts what the shell draws. This file asserts only that an address reaches the
  * page it names, in both forms.
@@ -31,15 +30,6 @@ const NAV = [{ label: 'Maintenance', href: '/maintenance/' }] as const;
 
 /** The projects the chrome knows, so `/qits/…` parses as a project and not as this app's own page. */
 const PROJECTS = [{ id: 'p-1', slug: 'qits', name: 'QITS' }];
-
-/** The smallest journey the adoption page will draw: one release and nothing downstream of it. */
-const journey = (): AdoptionJourneyDto => ({
-  repository: 'qits-eventstream',
-  catalogId: 'repo-eventstream',
-  version: '2026.905.1',
-  packages: [{ ecosystem: 'maven', name: 'eu.wohlben.qits:qits-eventstream' }],
-  adopters: [],
-});
 
 /** A hop that redirects before it lands takes several turns of the queue, not one. */
 async function settle(harness: RouterTestingHarness, rounds = 6): Promise<void> {
@@ -146,40 +136,35 @@ describe('routes', () => {
     ).not.toBeNull();
   });
 
-  /** One release's journey, addressed by the release itself, at the root and under a project slug. */
-  it('serves the adoption journey of one release in both forms', async () => {
+  /**
+   * The address one release's adoption journey had before it moved into the landing app
+   * (qits-2333). What it forwards and drops is `dependencies-redirect.spec.ts`'s job to assert;
+   * this only checks that the address still resolves, to the redirect screen rather than to a page
+   * of this application, including under a project slug.
+   */
+  it('serves the legacy adoption/:repository/:version as a redirect out to the landing app', async () => {
     const harness = await RouterTestingHarness.create('/adoption/qits-eventstream/2026.905.1');
-    await harness.fixture.whenStable();
-    const lookup = http.expectOne(
-      (candidate) => candidate.url === '/maintenance/api/adoption/by-release',
-    );
-    expect(lookup.request.params.get('repository')).toBe('qits-eventstream');
-    expect(lookup.request.params.get('version')).toBe('2026.905.1');
-    lookup.flush(journey());
     await harness.fixture.whenStable();
 
     expect(
-      (harness.routeNativeElement as HTMLElement).querySelector('app-adoption-page'),
+      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-redirect'),
     ).not.toBeNull();
 
     await harness.navigateByUrl('/qits/adoption/qits-eventstream/2026.905.1');
     await harness.fixture.whenStable();
-    http
-      .expectOne((candidate) => candidate.url === '/maintenance/api/adoption/by-release')
-      .flush(journey());
-    await harness.fixture.whenStable();
 
     expect(
-      (harness.routeNativeElement as HTMLElement).querySelector('app-adoption-page'),
+      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-redirect'),
     ).not.toBeNull();
   });
 
   /**
    * The address a release link landed on while the release trains existed. It is in links that are
    * already out there — qits-projects composes it from a release request — so it survives as a
-   * redirect, and both of its parameters travel into the address that replaced it.
+   * redirect, and both of its parameters travel into the address that replaced it, which is itself
+   * a redirect out to the landing app since qits-2333.
    */
-  it('redirects the retired trains/by-release to the adoption journey, in both forms', async () => {
+  it('redirects the retired trains/by-release to the adoption redirect, in both forms', async () => {
     const harness = await RouterTestingHarness.create(
       '/trains/by-release/qits-eventstream/2026.905.1',
     );
@@ -188,23 +173,17 @@ describe('routes', () => {
     await settle(harness);
 
     expect(TestBed.inject(Router).url).toBe('/adoption/qits-eventstream/2026.905.1');
-    http
-      .expectOne((candidate) => candidate.url === '/maintenance/api/adoption/by-release')
-      .flush(journey());
-    await settle(harness);
-
     expect(
-      (harness.routeNativeElement as HTMLElement).querySelector('app-adoption-page'),
+      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-redirect'),
     ).not.toBeNull();
 
     await harness.navigateByUrl('/qits/trains/by-release/qits-eventstream/2026.905.1');
     await settle(harness);
 
     expect(TestBed.inject(Router).url).toBe('/qits/adoption/qits-eventstream/2026.905.1');
-    http
-      .expectOne((candidate) => candidate.url === '/maintenance/api/adoption/by-release')
-      .flush(journey());
-    await settle(harness);
+    expect(
+      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-redirect'),
+    ).not.toBeNull();
   });
 
   /**

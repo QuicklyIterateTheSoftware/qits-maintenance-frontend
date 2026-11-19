@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { MaintenanceApi } from './maintenance-api';
 
 /**
- * The seven calls, at the addresses qits-platform-maintenance serves them at.
+ * The six calls, at the addresses qits-platform-maintenance serves them at.
  *
  * The assertions worth having are the ones that are invisible on screen when they are wrong:
  * **every path is relative**, because a configured origin would leave the edge's session cookie
@@ -113,30 +113,6 @@ describe('MaintenanceApi', () => {
     });
 
     expect((await downstream).downstream[0].repository).toBe('qits-ci-frontend');
-  });
-
-  /**
-   * The journey of one release, by the release it is about. Both halves are query parameters and
-   * neither is a segment: the pair is one question, and the service answers 400 to half of it.
-   */
-  it('asks for an adoption journey with both halves as query parameters', async () => {
-    const journey = api.adoptionByRelease('qits-eventstream', '2026.905.1');
-
-    const request = http.expectOne(
-      (candidate) => candidate.url === '/maintenance/api/adoption/by-release',
-    );
-    expect(request.request.method).toBe('GET');
-    expect(request.request.params.get('repository')).toBe('qits-eventstream');
-    expect(request.request.params.get('version')).toBe('2026.905.1');
-    request.flush({
-      repository: 'qits-eventstream',
-      catalogId: 'repo-eventstream',
-      version: '2026.905.1',
-      packages: [{ ecosystem: 'maven', name: 'eu.wohlben.qits:qits-eventstream' }],
-      adopters: [],
-    });
-
-    expect((await journey).version).toBe('2026.905.1');
   });
 
   it('percent-encodes a name rather than pasting it into the path', async () => {

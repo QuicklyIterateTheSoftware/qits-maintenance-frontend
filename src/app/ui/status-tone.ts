@@ -4,15 +4,13 @@ import type { QitsBadgeTone } from '@qits/ui-components';
  * What colour a status word is, in one place, for every badge on every page.
  *
  * `QitsBadge` takes a *semantic* tone and never a colour, so this file is a translation between two
- * vocabularies rather than styling. Six enums share it — a repository's scan status, a branch's
- * state, a bump's outcome, an artifact's bill of materials, a dependent's currency and a downstream
- * repository's adoption of a release — because they overlap and never collide: `FAILED` means the
- * same thing on a branch, on a bump and on an ingest, and no word appears in two of them with two
- * meanings.
- *
- * **PENDING is the same amber for an adoption as for an SBOM**, and that is the shared word
- * working rather than a collision: both mean "nothing has happened here yet, and something is
- * expected to".
+ * vocabularies rather than styling. Five enums share it — a repository's scan status, a branch's
+ * state, a bump's outcome, an artifact's bill of materials and a dependent's currency — because
+ * they overlap and never collide: `FAILED` means the same thing on a branch, on a bump and on an
+ * ingest, and no word appears in two of them with two meanings. A sixth, a downstream repository's
+ * adoption of a release, shared `PENDING` with the artifact's bill of materials too, until the
+ * adoption page moved into the landing app (qits-2333); `PENDING` now belongs to the bill of
+ * materials alone, meaning "nothing has happened here yet, and something is expected to".
  *
  * **REQUESTED and RUNNING share the warning tone.** The reader's question is "what is still
  * happening", and a bump queued behind the worker and a bump in flight are the same answer to it.
@@ -49,11 +47,6 @@ const TONES: Readonly<Record<string, QitsBadgeTone>> = {
   CURRENT: 'success',
   BEHIND: 'warning',
   UNKNOWN: 'neutral',
-  // Whether a downstream repository has taken a release. PENDING is the amber above, deliberately
-  // shared: a repository that has not released with the new version yet is waiting, exactly as an
-  // artifact whose bill of materials has not arrived is. ADOPTED is information rather than
-  // success — the release travelling downstream is the ordinary course of things, not an outcome.
-  ADOPTED: 'info',
 };
 
 /**

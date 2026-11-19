@@ -4,7 +4,7 @@ The maintenance frontend: what every repository in the catalog pins, what the re
 released since, what the platform's own releases already ship, which maintenance branches are
 waiting, and how far each of our own releases has travelled downstream. Served by
 qits-platform-maintenance at the root of `maintenance.<env>.<domain>` through Quinoa. Ten
-addresses — five pages, two redirects and three full-page hops out to the landing app — all inside
+addresses — three pages, two redirects and five full-page hops out to the landing app — all inside
 the platform chrome, and each of them reachable under a project slug as well.
 
 **The first segment is the section, and it is the organising idea of the application.** `internal`
@@ -23,20 +23,23 @@ one there too; both sections now show only their repository listing here.
   those pins drag in underneath them, what the platform already ships that contains this
   repository's artifacts, everything downstream of it to the end of the chain, a panel per group
   naming its branch and state, and the bumps it has had.
-- **`/bumps/<id>`** — one bump: the branch, the changes sent, the CI run, and what the release ask
-  answered.
-- **`/adoption/<repository>/<version>`** — one release, and how far it has travelled, as a
-  left-to-right flowchart: the release is the card in the first column, each column after it is one
-  hop further downstream, and an arrow is one repository reaching another. Every repository is one
-  card no matter how many paths reach it, with an arrow in from each of them, because that is the
-  shape the answer has — a graph, not a tree. A card either carries the version, with the release of
-  its own that first did and when, or is waiting; a deep card needs no sentence about what it waits
-  behind, because the arrows into it say so. Deep chains scroll sideways. See below.
+- **`/bumps/<id>`** — no longer a screen of this application. It moved into the landing app, at
+  `/projects/<slug>/maintenance/bumps/<id>`, and this address now exists only to carry an old
+  bookmark there: no query travels, the id travels in the path, and `<slug>` resolves the same way
+  the dependency addresses do (qits-2332).
+- **`/adoption/<repository>/<version>`** — no longer a screen of this application either. It moved
+  into the landing app, at `/projects/<slug>/maintenance/adoption/<repository>/<version>`, and this
+  address now exists only to carry an old bookmark there: no query travels, both parameters travel
+  in the path, and `<slug>` resolves the same way (qits-2333). The left-to-right flowchart the
+  address used to draw here — one card per repository downstream of the release, with an arrow in
+  from each of its parents, because that is the shape the answer has, a graph and not a tree — is
+  now the landing app's to draw.
 - **`/`** redirects to `/internal`, and
   **`/trains/by-release/<repository>/<version>`** — the address a release link landed on while the
   release trains existed — redirects to `/adoption/<repository>/<version>`, carrying both of its
-  parameters. Nothing else of the trains survives: their listing and one train's id named documents
-  this service no longer holds.
+  parameters, which itself redirects on to the landing app the same way (qits-2333). Nothing else of
+  the trains survives: their listing and one train's id named documents this service no longer
+  holds.
 - **`/dependencies`** — the search's address when there was only one of them — no longer resolves to
   a screen of this application. The dependency view moved into the landing app, at
   `/projects/<slug>/maintenance/dependencies`, and this address now exists only to carry an old
@@ -99,21 +102,19 @@ move at the fold of an open request, or of the main-only one the dispatcher open
 still names its group's branch and state, and still links an active bump while one is running,
 because that bump can still be the automation's own; it just has nothing left to press.
 
-**The journey is served, not stitched.** The service traces the whole closure downstream of a
-release and evaluates the adoption of every step of it per request, so the adoption page makes one
-call and draws its answer. It used to be the other way round — the service stored one train per
-release and this application walked a train per consumer, ten levels deep — and that walk is gone
-with the trains: a client stitching a graph was deciding how far the answer went, which is the
+**The journey was served, not stitched.** The service traces the whole closure downstream of a
+release and evaluates the adoption of every step of it per request, which is what let the adoption
+page make one call and draw its answer — before it moved into the landing app (qits-2333). It used
+to be the other way round, before the adoption page itself existed — the service stored one train
+per release and this application walked a train per consumer, ten levels deep — and that walk is
+gone with the trains: a client stitching a graph was deciding how far the answer went, which is the
 service's question and not a reading's. The same trace is what the repository page's downstream
-section draws, which is why a library's page now names the service two hops below it rather than
+section still draws, which is why a library's page names the service two hops below it rather than
 stopping at the frontend in between.
 
 **Polling stops.** A page re-reads while something it can see is unfinished, one request in flight
 at a time, and stops for good when nothing is. Two seconds for a bump or a scan, and nothing else
-polls at all. The adoption journey does not: a pending row moves when a downstream repository
-releases, which is minutes at best, and one re-read is a traced query over the whole graph rather
-than a cheap row fetch — so the page offers the reader the same question again instead, in a button.
-A poll that fails leaves the last good answer on screen and says so above it.
+polls at all. A poll that fails leaves the last good answer on screen and says so above it.
 
 **A scan is followed by watching the rows it moves.** `POST /scans` answers an id and the contract
 has no `GET /scans/{id}`, so "it finished" can only be read off `lastScanAt` — against the server's
@@ -126,13 +127,14 @@ option: same-origin sends the cookie by default.
 
 ## The contract it consumes
 
-Eight calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"). A ninth —
-`POST /repositories/{name}/groups/{group}/bumps`, asking for a group's branch by hand — answers
-`410` now and is on its way to `404`; `qits-1133` retired it, and nothing here calls it any more.
-Two more — `GET /dependencies/dependents` and `GET /artifacts`, which the internal dependency
-listing read — went with that page itself when it moved into the landing app at qits-2330, and a
-fourth — `GET /dependencies`, which the external dependency search read — went with that page the
-same way at qits-2331; this application no longer calls any of the three.
+Six calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"). Six more have been
+retired over time, and this application no longer calls any of them:
+`POST /repositories/{name}/groups/{group}/bumps` (asking for a group's branch by hand) answers
+`410` now and is on its way to `404`, retired by `qits-1133`; `GET /dependencies/dependents` and
+`GET /artifacts`, which the internal dependency listing read, went with that page into the landing
+app at qits-2330; `GET /dependencies`, which the external dependency search read, went the same way
+at qits-2331; `GET /bumps/{id}`, which the bump page read, went the same way at qits-2332; and
+`GET /adoption/by-release`, which the adoption page read, went the same way at qits-2333.
 
 ```
 GET  /maintenance/api/repositories                                  → [{name, project, lastScanAt, headSha, status, message, pending, groups:[{name, source, kind, branch, state, headSha, pending}]}]
@@ -140,12 +142,10 @@ GET  /maintenance/api/repositories/{name}                           → reposito
 GET  /maintenance/api/repositories/{name}/dependents                → {repository, artifacts:[{ecosystem, name, dependents:[…]}]}
 POST /maintenance/api/scans {scope, repository?}                    → 202 {id}
 GET  /maintenance/api/bumps?repository=&limit=20                    → [bump rows]
-GET  /maintenance/api/bumps/{id}                                    → one bump row
 GET  /maintenance/api/repositories/{name}/downstream                → {repository, catalogId, downstream:[{repository, catalogId, archetype, depth, via:[…]}]}
-GET  /maintenance/api/adoption/by-release?repository=&version=      → {repository, catalogId, version, packages:[{ecosystem, name}], adopters:[{repository, catalogId, repositoryStatus, archetype, depth, via:[…], state, adoptedVersion, adoptedAt}]}
 ```
 
-Eleven things the JSON shape alone does not say, and which these pages depend on:
+Seven things the JSON shape alone does not say, and which these pages depend on:
 
 - **The reads answer bare arrays and bare objects, not envelopes.** No `{items: […]}` wrapper.
 - **A bump row spells its group as `group` and its CI ids as `ciEventId` / `ciRunId`**, and may
@@ -160,21 +160,6 @@ Eleven things the JSON shape alone does not say, and which these pages depend on
   came back to hold on to) and `refused`. Both are rendered as they arrive and never linked. The id
   names an OPEN release request in qits-projects, not a release: the quality gates settle it and Auto
   Release tags it afterwards.
-- **An adopter is always a repository, and `repositoryStatus` says whether this inventory holds a
-  row for it.** It is null where the trace reached a name nothing has scanned — a submodule URL's
-  basename, say — and the link to a repository page is drawn only where it is not.
-- **`repositoryStatus: "ABSENT"` means the repository left the catalog.** It will never take the
-  release, and the row says so, because a journey waiting on it silently would look stuck for no
-  visible reason.
-- **`depth` and `via` are how an adopter is read, and `via` is the PARENTS rather than a path.**
-  Depth 1 pins what the release published; a deeper adopter was reached from every repository `via`
-  names, all of which sit at `depth - 1` — several of them when two upstreams both lead there — and
-  a pending one is waiting on those rather than on this release. Reading `via` as a chain from the
-  release was the mistake the old table made, and it is what the flowchart's edges replace.
-- **`GET /adoption/by-release` has no 404.** The answer is derived from the dependency graph rather
-  than from a record that a release was tracked, so a release this service has never seen answers
-  with empty `packages` and a wholly pending closure — which the page says in a sentence. A
-  half-built link — one of the pair — is still a 400.
 - **`GET /repositories/{name}/downstream` answers 200 for a name it does not know**, with an empty
   `downstream`: "who is downstream of this" has an honest answer for any name, and it is "nothing".
 

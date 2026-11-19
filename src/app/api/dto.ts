@@ -68,20 +68,6 @@ export type GroupSource = 'CONFIG' | 'DEFAULT';
 export type SbomStatus = 'PENDING' | 'INGESTED' | 'MISSING' | 'FAILED';
 
 /**
- * Whether a downstream repository has taken a release yet.
- *
- * **Two words and no third one.** `ADOPTED` means one of that repository's own releases carries a
- * version of the subject at least as new as the one asked about; `PENDING` means none does — which
- * includes the repository that has not been released since, the one whose bill of materials has not
- * been ingested, and the one nothing can be said about. A `PENDING` row is not a failure and is
- * never drawn as one: it is the ordinary state of a downstream repository an hour after a release.
- *
- * The service evaluates this per request against the bills of materials it holds, so a row can move
- * from `PENDING` to `ADOPTED` between two reads of this page and never the other way.
- */
-export type AdoptionState = 'ADOPTED' | 'PENDING';
-
-/**
  * One maintenance group of a repository, and the branch it bumps on.
  *
  * `kind` and `source` are two different questions. `source` says whether the repository asked for
@@ -350,61 +336,4 @@ export interface DownstreamDto {
   readonly repository: string;
   readonly catalogId: string | null;
   readonly downstream: readonly DownstreamEntryDto[];
-}
-
-/** One thing a release published, which is what the repositories below it pin. */
-export interface AdoptionPackageDto {
-  readonly ecosystem: string;
-  readonly name: string;
-}
-
-/**
- * One repository downstream of a release, and whether it has taken it.
- *
- * **Every adopter IS a repository**, unlike the consumers of the release trains this replaced:
- * the closure is traced over the inventory, so there is no application-named end. `repositoryStatus`
- * is the catalog's word about it — `ABSENT` for one that left the catalog — and null where the
- * inventory holds no row at all, which is the one case a link to a repository page is not drawn.
- *
- * `adoptedVersion` is that repository's OWN release that first carried a new-enough copy of the
- * subject, and `adoptedAt` is when that release happened; both are null while the state is
- * `PENDING`.
- *
- * **`via` names the PARENTS at `depth - 1` — all of them, name-ascending — and never a path.** Two
- * upstreams can both lead to one repository (a service that pins a library directly AND submodules
- * a frontend carrying it), and `DownstreamResolver` collects every one of them; at depth 1 the sole
- * parent is the subject repository itself. That is what a `PENDING` adopter is read with — a
- * repository three hops down is waiting on the ones above it, not on this release — and it is why
- * the journey is drawn as a graph with one card per repository and an edge in from each parent,
- * rather than as a tree that would have to copy the repository under each of them.
- */
-export interface AdopterDto {
-  readonly repository: string;
-  readonly catalogId: string | null;
-  readonly repositoryStatus: RepositoryStatus | null;
-  readonly archetype: string | null;
-  readonly depth: number;
-  readonly via: readonly string[];
-  readonly state: AdoptionState;
-  readonly adoptedVersion: string | null;
-  readonly adoptedAt: string | null;
-}
-
-/**
- * One release, and how far it has travelled — `GET /adoption/by-release?repository=&version=`.
- *
- * **The whole journey arrives in one answer.** The service folds the closure and the adoption of
- * every step of it per request; there is nothing to stitch here and nothing to follow. That is a
- * change from the release trains this replaced, where the client walked a train per consumer.
- *
- * **There is no 404.** A release the log knows nothing about answers with empty `packages` and
- * whatever the closure says, every row `PENDING` — because the question is asked of the dependency
- * graph rather than of a record that a release was tracked.
- */
-export interface AdoptionJourneyDto {
-  readonly repository: string;
-  readonly catalogId: string | null;
-  readonly version: string;
-  readonly packages: readonly AdoptionPackageDto[];
-  readonly adopters: readonly AdopterDto[];
 }

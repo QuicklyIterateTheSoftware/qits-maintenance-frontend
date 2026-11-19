@@ -4,9 +4,9 @@ import { DependenciesRedirect } from './dependencies/dependencies-redirect';
 import { NotFound } from './not-found/not-found';
 
 /**
- * Ten addresses, all of them inside the platform chrome; two are `redirectTo` entries and four
- * others — `internal/dependencies`, `dependencies`, `external/dependencies` and `bumps/:id` — are
- * full-page hops out of this application entirely.
+ * Ten addresses, all of them inside the platform chrome; two are `redirectTo` entries and five
+ * others — `internal/dependencies`, `dependencies`, `external/dependencies`, `bumps/:id` and
+ * `adoption/:repository/:version` — are full-page hops out of this application entirely.
  *
  * **The first segment is the SECTION, and it is the organising idea of the whole application.**
  * `internal` is what this platform publishes and can release; `external` is what the world
@@ -34,15 +34,19 @@ import { NotFound } from './not-found/not-found';
  * qits-2332 moved the bump page into the landing app, that address is one more full-page hop
  * instead (below), and this application answers nothing at it directly any more.
  *
- * **A release is addressed by what it is, not by an id this application minted.**
- * `adoption/:repository/:version` is the whole of the adoption journey: a linker — a release
- * request, a CI run, a chat message — has a repository and a version, and the service answers the
- * journey of that pair per request. There is nothing to resolve first and no id to look up, which
- * is why this is a plain page where the release trains needed a resolver component in front of one.
+ * **A release was addressed by what it is, not by an id this application minted.**
+ * `adoption/:repository/:version` names the whole of the adoption journey: a linker — a release
+ * request, a CI run, a chat message — has a repository and a version, and the service answered the
+ * journey of that pair per request. There was nothing to resolve first and no id to look up, which
+ * is why this was a plain page where the release trains needed a resolver component in front of
+ * one; since qits-2333 moved the journey into the landing app, both parameters still travel, now as
+ * the path segments of the full-page hop below (`DependenciesRedirect` again) rather than of a page
+ * here.
  *
  * **`trains/by-release/:repository/:version` is kept as a redirect to it.** The release trains are
  * retired, but that address is in links qits-projects has already published, and the two carry the
- * same pair of parameters — so the redirect substitutes them and the old link opens the new page.
+ * same pair of parameters — so the redirect substitutes them and the old link reaches the landing
+ * app's journey in one further hop, through `adoption/:repository/:version` itself (qits-2333).
  * Nothing else under `trains` survives, and nothing is added to bury it: `trains/:id` named a
  * document that no longer exists and falls through to the wildcard, and the bare `trains` is not
  * one of this app's segments any more, so it reads as a project of that name — the same answer any
@@ -54,18 +58,20 @@ import { NotFound } from './not-found/not-found';
  * views have since moved out (below); what each forwards still travels as query parameters, just
  * one hop further on.
  *
- * **`/dependencies`, `internal/dependencies`, `external/dependencies` and `bumps/:id` all later went
- * the other way.** The views they named moved into the landing app — `/dependencies` to
- * `/projects/<slug>/maintenance/dependencies` (qits-2317), `internal/dependencies` to
- * `/projects/<slug>/maintenance/artifacts` (qits-2330), `external/dependencies` to
- * `/projects/<slug>/maintenance/dependencies` (qits-2331), `bumps/:id` to
- * `/projects/<slug>/maintenance/bumps/<id>` (qits-2332) — so all four addresses are now
- * {@link DependenciesRedirect}: a full-page hop to the screen that replaced them. Each route's own
- * `data` says which screen it goes to and which query parameters still mean something there —
- * `?behind=` for the first, `?ecosystem=` and `?name=` for the second, `?name=` for the third, none
- * for the fourth, whose id travels in the path instead — and {@link DependenciesRedirect} drops
- * everything else as something the destination cannot act on. Old bookmarks to any form of any of
- * the four addresses still work; they just do not land on a screen of this application any more.
+ * **`/dependencies`, `internal/dependencies`, `external/dependencies`, `bumps/:id` and
+ * `adoption/:repository/:version` all later went the other way.** The views they named moved into
+ * the landing app — `/dependencies` to `/projects/<slug>/maintenance/dependencies` (qits-2317),
+ * `internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330),
+ * `external/dependencies` to `/projects/<slug>/maintenance/dependencies` (qits-2331), `bumps/:id` to
+ * `/projects/<slug>/maintenance/bumps/<id>` (qits-2332), `adoption/:repository/:version` to
+ * `/projects/<slug>/maintenance/adoption/<repository>/<version>` (qits-2333) — so all five addresses
+ * are now {@link DependenciesRedirect}: a full-page hop to the screen that replaced them. Each
+ * route's own `data` says which screen it goes to and which query parameters still mean something
+ * there — `?behind=` for the first, `?ecosystem=` and `?name=` for the second, `?name=` for the
+ * third, none for the fourth or the fifth, whose parameters travel in the path instead — and
+ * {@link DependenciesRedirect} drops everything else as something the destination cannot act on.
+ * Old bookmarks to any form of any of the five addresses still work; they just do not land on a
+ * screen of this application any more.
  *
  * **Every one of these is a deep link a reader will paste.** They survive a reload only because
  * qits-platform-maintenance sets `quarkus.quinoa.enable-spa-routing=true`, which answers an unknown
@@ -110,9 +116,13 @@ const OWN: Routes = [
     component: DependenciesRedirect,
     data: { landingPath: 'maintenance/bumps/:id', forward: [] },
   },
+  // The address one release's adoption journey had before it moved into the landing app, as
+  // `/projects/<slug>/maintenance/adoption/<repository>/<version>` (qits-2333). No query travels;
+  // both parameters travel in the path.
   {
     path: 'adoption/:repository/:version',
-    loadComponent: () => import('./adoption/adoption-page').then((m) => m.AdoptionPage),
+    component: DependenciesRedirect,
+    data: { landingPath: 'maintenance/adoption/:repository/:version', forward: [] },
   },
   // The address a release link landed on while the release trains existed. Both parameters carry
   // across into the redirect, so a link published before this change opens the journey it meant.

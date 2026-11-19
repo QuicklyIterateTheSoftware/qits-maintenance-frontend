@@ -7,8 +7,8 @@ import { DependenciesRedirect, type DependenciesRedirectData } from './dependenc
 
 /**
  * Where an old bookmark to this app's own `/dependencies`, `internal/dependencies`,
- * `external/dependencies` and `bumps/:id` — and their `/<project>/…` forms — lands, now that the
- * views they named live in the landing app.
+ * `external/dependencies`, `bumps/:id` and `adoption/:repository/:version` — and their
+ * `/<project>/…` forms — lands, now that the views they named live in the landing app.
  *
  * **No router here, on purpose.** The component reads `:project` off
  * `ActivatedRoute.snapshot.parent` and any `landingPath` placeholder, such as `bumps/:id`'s own
@@ -58,6 +58,15 @@ describe('DependenciesRedirect', () => {
   /** The route `data` `bumps/:id` carries, since qits-2332: the id travels in the path, not a query. */
   const BUMP_DATA: DependenciesRedirectData = {
     landingPath: 'maintenance/bumps/:id',
+    forward: [],
+  };
+
+  /**
+   * The route `data` `adoption/:repository/:version` carries, since qits-2333: both halves travel
+   * in the path, not a query.
+   */
+  const ADOPTION_DATA: DependenciesRedirectData = {
+    landingPath: 'maintenance/adoption/:repository/:version',
     forward: [],
   };
 
@@ -260,6 +269,62 @@ describe('DependenciesRedirect', () => {
 
       expect(replace).toHaveBeenCalledWith(
         'https://qits.example.test/projects/qits/maintenance/bumps/bump-1',
+      );
+    });
+  });
+
+  describe('adoption/:repository/:version, forwarding to maintenance/adoption/:repository/:version (qits-2333)', () => {
+    it('redirects to the landing app’s adoption page, with both halves url-encoded in the path', () => {
+      mount({
+        data: ADOPTION_DATA,
+        project: 'qits',
+        params: { repository: 'qits/eventstream', version: '2026.905.1' },
+        query: { x: '1' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledOnce();
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/adoption/qits%2Feventstream/2026.905.1',
+      );
+    });
+
+    it('uses the estate’s only project when the address names none', () => {
+      mount({
+        data: ADOPTION_DATA,
+        params: { repository: 'qits-eventstream', version: '2026.905.1' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/adoption/qits-eventstream/2026.905.1',
+      );
+    });
+
+    it('carries the named project across, under the scoped /<project>/adoption/:repository/:version form', () => {
+      mount({
+        data: ADOPTION_DATA,
+        project: 'acme',
+        params: { repository: 'qits-eventstream', version: '2026.905.1' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/acme/maintenance/adoption/qits-eventstream/2026.905.1',
+      );
+    });
+
+    it('forwards no query string at all, this address never had one to carry', () => {
+      mount({
+        data: ADOPTION_DATA,
+        project: 'qits',
+        params: { repository: 'qits-eventstream', version: '2026.905.1' },
+        query: { x: '1' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/adoption/qits-eventstream/2026.905.1',
       );
     });
   });
