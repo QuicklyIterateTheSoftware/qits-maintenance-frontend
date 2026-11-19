@@ -20,10 +20,12 @@ import { QitsAppLinks } from '@qits/ui-components';
  * rather than forwarded as a query parameter the old address never had — `bumps/:id` names the id as
  * a path segment, not a search term, so `maintenance/bumps/:id` is how the bump page's new address
  * is spelled here, with `:id` filled in and `encodeURIComponent`-escaped at read time (qits-2332).
- * `adoption/:repository/:version` carries two such placeholders rather than one — the substitution
- * is the same regular expression either way, so `maintenance/adoption/:repository/:version` fills
- * both in from this route's own two parameters (qits-2333). A `landingPath` with no such placeholder
- * behaves exactly as it did before either ticket.
+ * `adoption/:repository/:version` carries two such placeholders rather than one, and
+ * `repositories/:name` reuses the same mechanism for its own single `:name` placeholder — the
+ * substitution is the same regular expression either way, so
+ * `maintenance/adoption/:repository/:version` fills both of its parameters in and
+ * `maintenance/repositories/:name` fills its one (qits-2333, qits-2334). A `landingPath` with no
+ * such placeholder behaves exactly as it did before any of them.
  */
 export interface DependenciesRedirectData {
   readonly landingPath: string;
@@ -35,9 +37,10 @@ export interface DependenciesRedirectData {
  * the landing app instead: `/dependencies` to `/projects/<slug>/maintenance/dependencies`
  * (qits-2317), `/internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330),
  * `/external/dependencies` back to `/projects/<slug>/maintenance/dependencies` (qits-2331),
- * `/bumps/:id` to `/projects/<slug>/maintenance/bumps/<id>` (qits-2332), and
+ * `/bumps/:id` to `/projects/<slug>/maintenance/bumps/<id>` (qits-2332), `/repositories/:name` to
+ * `/projects/<slug>/maintenance/repositories/<name>` (qits-2334), and
  * `/adoption/:repository/:version` to
- * `/projects/<slug>/maintenance/adoption/<repository>/<version>` (qits-2333). All five are the same
+ * `/projects/<slug>/maintenance/adoption/<repository>/<version>` (qits-2333). All six are the same
  * one hop, differing only in the `data` the route pointing here carries — see
  * {@link DependenciesRedirectData}.
  *

@@ -2,35 +2,28 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { QITS_API_BASE } from './api-base';
-import type {
-  AcceptedDto,
-  BumpDto,
-  DownstreamDto,
-  RepositoryDependentsDto,
-  RepositoryDetailDto,
-  RepositoryDto,
-  ScanScope,
-} from './dto';
+import type { AcceptedDto, BumpDto, RepositoryDto, ScanScope } from './dto';
 
 /**
  * Everything this app says to qits-platform-maintenance, through the edge, at `/maintenance/api`.
  *
- * **Five reads and one write, and the write is the point of the application.** A scan refreshes
+ * **Two reads and one write, and the write is the point of the application.** A scan refreshes
  * what the platform pins and what the registries hold, and answers 202: the work is accepted, not
  * finished, and every page re-reads for anything else. Asking for a group's branch by hand is gone
  * with it — `qits-1133` moved that into the `dependency-bump` release-request automation, which this
  * app has no door to and nothing here calls.
  *
- * **Two of the reads are about the other direction.** Pins say what a repository consumes;
- * `repositoryDependents` says what consumes it, read off the bills of materials of what the
- * platform has actually released, and `downstream` traces that direction to the end of the chain
- * rather than one hop. Nothing in that half is editable, and none of it is polled. (The internal
- * dependency listing read the same bills of materials through `artifacts` and `artifactDependents`,
- * retired with the page itself when it moved to the landing app at qits-2330; the external
- * dependency search read the forward direction through `dependencies`, retired the same way at
- * qits-2331. One bump by id, read through `bump`, was retired the same way at qits-2332 — the
- * listing `bumps` reads stays, since repositories pages still poll it. One release's whole adoption
- * journey, read through `adoptionByRelease`, was retired the same way at qits-2333.)
+ * **Nothing about the other direction is read here any more.** Pins say what a repository
+ * consumes; this service also answers for the reverse direction, but nothing here calls any of
+ * those doors any more. (The internal dependency listing read the bills of materials through
+ * `artifacts` and `artifactDependents`, retired with the page itself when it moved to the landing
+ * app at qits-2330; the external dependency search read the forward direction through
+ * `dependencies`, retired the same way at qits-2331; one bump by id, read through `bump`, was
+ * retired the same way at qits-2332; one release's whole adoption journey, read through
+ * `adoptionByRelease`, was retired the same way at qits-2333; and one repository's own pins,
+ * dependents and downstream closure, read through `repository`, `repositoryDependents` and
+ * `downstream`, went the same way at qits-2334 — the listing `bumps` reads stays, since
+ * repositories pages still poll it.)
  *
  * **Every path is relative.** The SPA is served at `/maintenance/` by the service itself, behind
  * the edge that serves `/maintenance/api/…`, so a same-origin absolute path is what lets the
@@ -50,33 +43,6 @@ export class MaintenanceApi {
     return firstValueFrom(
       this.http.get<RepositoryDto[]>(`${this.base}/maintenance/api/repositories`),
     );
-  }
-
-  /** One repository with every pin its manifests hold, and what its artifacts contain. */
-  repository(name: string): Promise<RepositoryDetailDto> {
-    return firstValueFrom(this.http.get<RepositoryDetailDto>(this.repositoryUrl(name)));
-  }
-
-  /** What consumes a repository's own artifacts — the other direction of its pins. */
-  repositoryDependents(name: string): Promise<RepositoryDependentsDto> {
-    return firstValueFrom(
-      this.http.get<RepositoryDependentsDto>(`${this.repositoryUrl(name)}/dependents`),
-    );
-  }
-
-  /**
-   * Everything downstream of a repository, to the end of the chain rather than one hop.
-   *
-   * `dependents` answers who consumes this repository directly; this answers who consumes THEM as
-   * well, and who consumes those, ordered by how far away each is. It is traced per request out of
-   * the pins and the bills of materials the service already holds — there is nothing stored to go
-   * stale, and nothing here to poll.
-   *
-   * A name the inventory does not know is an empty answer and not a 404, so a caller composing this
-   * from a name it was handed never has to tell the two apart.
-   */
-  downstream(name: string): Promise<DownstreamDto> {
-    return firstValueFrom(this.http.get<DownstreamDto>(`${this.repositoryUrl(name)}/downstream`));
   }
 
   /**
@@ -106,9 +72,5 @@ export class MaintenanceApi {
     return firstValueFrom(
       this.http.get<BumpDto[]>(`${this.base}/maintenance/api/bumps`, { params }),
     );
-  }
-
-  private repositoryUrl(name: string): string {
-    return `${this.base}/maintenance/api/repositories/${encodeURIComponent(name)}`;
   }
 }

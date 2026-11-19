@@ -7,8 +7,8 @@ import { DependenciesRedirect, type DependenciesRedirectData } from './dependenc
 
 /**
  * Where an old bookmark to this app's own `/dependencies`, `internal/dependencies`,
- * `external/dependencies`, `bumps/:id` and `adoption/:repository/:version` — and their
- * `/<project>/…` forms — lands, now that the views they named live in the landing app.
+ * `external/dependencies`, `bumps/:id`, `repositories/:name` and `adoption/:repository/:version` —
+ * and their `/<project>/…` forms — lands, now that the views they named live in the landing app.
  *
  * **No router here, on purpose.** The component reads `:project` off
  * `ActivatedRoute.snapshot.parent` and any `landingPath` placeholder, such as `bumps/:id`'s own
@@ -67,6 +67,12 @@ describe('DependenciesRedirect', () => {
    */
   const ADOPTION_DATA: DependenciesRedirectData = {
     landingPath: 'maintenance/adoption/:repository/:version',
+    forward: [],
+  };
+
+  /** The route `data` `repositories/:name` carries, since qits-2334: same shape, a name not an id. */
+  const REPOSITORY_DATA: DependenciesRedirectData = {
+    landingPath: 'maintenance/repositories/:name',
     forward: [],
   };
 
@@ -325,6 +331,58 @@ describe('DependenciesRedirect', () => {
 
       expect(replace).toHaveBeenCalledWith(
         'https://qits.example.test/projects/qits/maintenance/adoption/qits-eventstream/2026.905.1',
+      );
+    });
+  });
+
+  describe('repositories/:name, forwarding to maintenance/repositories/<name> (qits-2334)', () => {
+    it('redirects to the landing app’s repository page, with the name url-encoded in the path', () => {
+      mount({
+        data: REPOSITORY_DATA,
+        project: 'qits',
+        params: { name: 'qits-ci/x' },
+        query: { x: '1' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledOnce();
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/repositories/qits-ci%2Fx',
+      );
+    });
+
+    it('uses the estate’s only project when the address names none', () => {
+      mount({ data: REPOSITORY_DATA, params: { name: 'qits-ci' }, navigation: LANDING_ORIGIN });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/repositories/qits-ci',
+      );
+    });
+
+    it('carries the named project across, under the scoped /<project>/repositories/:name form', () => {
+      mount({
+        data: REPOSITORY_DATA,
+        project: 'acme',
+        params: { name: 'qits-ci' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/acme/maintenance/repositories/qits-ci',
+      );
+    });
+
+    it('forwards no query string at all, this address never had one to carry', () => {
+      mount({
+        data: REPOSITORY_DATA,
+        project: 'qits',
+        params: { name: 'qits-ci' },
+        query: { x: '1' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/repositories/qits-ci',
       );
     });
   });

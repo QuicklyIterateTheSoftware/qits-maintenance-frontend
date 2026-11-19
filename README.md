@@ -4,7 +4,7 @@ The maintenance frontend: what every repository in the catalog pins, what the re
 released since, what the platform's own releases already ship, which maintenance branches are
 waiting, and how far each of our own releases has travelled downstream. Served by
 qits-platform-maintenance at the root of `maintenance.<env>.<domain>` through Quinoa. Ten
-addresses — three pages, two redirects and five full-page hops out to the landing app — all inside
+addresses — two pages, two redirects and six full-page hops out to the landing app — all inside
 the platform chrome, and each of them reachable under a project slug as well.
 
 **The first segment is the section, and it is the organising idea of the application.** `internal`
@@ -19,10 +19,13 @@ one there too; both sections now show only their repository listing here.
 - **`/external`** — the repository listing of the world's side: every repository, with its
   external pins as chips and how many are behind, the same shape as `/internal` for the other
   direction.
-- **`/repositories/<name>`** — section-neutral: internal pins and external pins as two tables, what
-  those pins drag in underneath them, what the platform already ships that contains this
-  repository's artifacts, everything downstream of it to the end of the chain, a panel per group
-  naming its branch and state, and the bumps it has had.
+- **`/repositories/<name>`** — no longer a screen of this application. It moved into the landing
+  app, at `/projects/<slug>/maintenance/repositories/<name>`, and this address now exists only to
+  carry an old bookmark there: no query travels, the name travels in the path, and `<slug>`
+  resolves the same way the other hops do (qits-2334). Internal pins and external pins as two
+  tables, what those pins drag in underneath them, what the platform already ships that contains
+  this repository's artifacts, everything downstream of it to the end of the chain, a panel per
+  group naming its branch and state, and the bumps it has had, are now the landing app's to draw.
 - **`/bumps/<id>`** — no longer a screen of this application. It moved into the landing app, at
   `/projects/<slug>/maintenance/bumps/<id>`, and this address now exists only to carry an old
   bookmark there: no query travels, the id travels in the path, and `<slug>` resolves the same way
@@ -79,38 +82,22 @@ service is not going to move. The `pending` flag on a pin is the same answer a b
 what the external search highlighted too, before it moved into the landing app (qits-2331) — it
 used to compare two strings itself, and disagreed with the branch the service actually writes.
 
-The one comparison this application does make is **equality**, in the dependents table: a release
-either embeds the same string the registry calls latest or it does not. Equality needs no ordering.
-Where no latest is known the verdict is `UNKNOWN` and never success — a lookup that failed must not
-read as good news, which is also why a pin's `latestError` is drawn beside its blank `latest`.
-
-**A pin can be moved; a transitive cannot.** The repository page draws both, and the difference is
-the whole point of how they look: a pin that is behind is amber, and what a release merely
-*contains* is grey, indented under the direct dependency that pulled it in, collapsed until it is
-asked for, and never amber. There is no line to edit and no automation that is ever going to move
-it.
-
-**What a repository consumes and what consumes it are read from different places.** Pins come from
-manifests, because a manifest is what a bump edits. Dependents come from the bills of materials of
-what has actually been released, because a service that pins the newest version and has not been
-rebuilt is still shipping the old one — and its manifest says nothing about that.
-
 **The service holds the rules; these pages report its answers.** `qits-1133` retired the group panel's
 `Create branch now` button — the door it posted to answers `410` now, on its way to `404` — and
 moved what it did into the `dependency-bump` release-request automation: a repository's pending pins
-move at the fold of an open request, or of the main-only one the dispatcher opens for it. A panel
-still names its group's branch and state, and still links an active bump while one is running,
-because that bump can still be the automation's own; it just has nothing left to press.
+move at the fold of an open request, or of the main-only one the dispatcher opens for it. The group
+chip on the repositories listing still names a group's branch, state and pending count; the panel
+that also linked an active bump while one was running was the repository page's own, and moved into
+the landing app with the rest of it at qits-2334.
 
-**The journey was served, not stitched.** The service traces the whole closure downstream of a
-release and evaluates the adoption of every step of it per request, which is what let the adoption
-page make one call and draw its answer — before it moved into the landing app (qits-2333). It used
-to be the other way round, before the adoption page itself existed — the service stored one train
-per release and this application walked a train per consumer, ten levels deep — and that walk is
-gone with the trains: a client stitching a graph was deciding how far the answer went, which is the
-service's question and not a reading's. The same trace is what the repository page's downstream
-section still draws, which is why a library's page names the service two hops below it rather than
-stopping at the frontend in between.
+**The journey was served, not stitched.** The service traced the whole closure downstream of a
+release and evaluated the adoption of every step of it per request, which is what let the adoption
+page make one call and draw its answer, and let the repository page's downstream section draw its
+own the same way — before both moved into the landing app, the adoption page at qits-2333 and the
+repository page at qits-2334. It used to be the other way round, before either page existed — the
+service stored one train per release and this application walked a train per consumer, ten levels
+deep — and that walk is gone with the trains: a client stitching a graph was deciding how far the
+answer went, which is the service's question and not a reading's.
 
 **Polling stops.** A page re-reads while something it can see is unfinished, one request in flight
 at a time, and stops for good when nothing is. Two seconds for a bump or a scan, and nothing else
@@ -127,41 +114,35 @@ option: same-origin sends the cookie by default.
 
 ## The contract it consumes
 
-Six calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"). Six more have been
+Three calls, pinned in the superproject's `qits-maintenance-plan.md` ("API"). Nine more have been
 retired over time, and this application no longer calls any of them:
 `POST /repositories/{name}/groups/{group}/bumps` (asking for a group's branch by hand) answers
 `410` now and is on its way to `404`, retired by `qits-1133`; `GET /dependencies/dependents` and
 `GET /artifacts`, which the internal dependency listing read, went with that page into the landing
 app at qits-2330; `GET /dependencies`, which the external dependency search read, went the same way
-at qits-2331; `GET /bumps/{id}`, which the bump page read, went the same way at qits-2332; and
-`GET /adoption/by-release`, which the adoption page read, went the same way at qits-2333.
+at qits-2331; `GET /bumps/{id}`, which the bump page read, went the same way at qits-2332;
+`GET /adoption/by-release`, which the adoption page read, went the same way at qits-2333; and
+`GET /repositories/{name}`, `GET /repositories/{name}/dependents` and
+`GET /repositories/{name}/downstream`, which the repository page read, went the same way at
+qits-2334.
 
 ```
 GET  /maintenance/api/repositories                                  → [{name, project, lastScanAt, headSha, status, message, pending, groups:[{name, source, kind, branch, state, headSha, pending}]}]
-GET  /maintenance/api/repositories/{name}                           → repository + pins:[…] + transitives:[{ecosystem, name, version, via, behind}]
-GET  /maintenance/api/repositories/{name}/dependents                → {repository, artifacts:[{ecosystem, name, dependents:[…]}]}
 POST /maintenance/api/scans {scope, repository?}                    → 202 {id}
 GET  /maintenance/api/bumps?repository=&limit=20                    → [bump rows]
-GET  /maintenance/api/repositories/{name}/downstream                → {repository, catalogId, downstream:[{repository, catalogId, archetype, depth, via:[…]}]}
 ```
 
-Seven things the JSON shape alone does not say, and which these pages depend on:
+Four things the JSON shape alone does not say, and which these pages depend on:
 
 - **The reads answer bare arrays and bare objects, not envelopes.** No `{items: […]}` wrapper.
 - **A bump row spells its group as `group` and its CI ids as `ciEventId` / `ciRunId`**, and may
   carry a `branch`. Without one the page falls back to `maintenance/<group>`.
-- **`GET /repositories/{name}` carries the overview's fields too** — `status`, `lastScanAt`,
-  `message` and `groups` — because the group panels and the header are drawn from them.
 - **A group's `kind` is null when its globs decide**, which a configured group's do. Such a group is
   drawn with the internal side rather than hidden from both.
-- **A pin's `kind` is one of four** — `INTERNAL`, `EXTERNAL`, `REACTOR`, `UNRESOLVED` — and its
-  `scope` is always `DIRECT`: what a release merely contains arrives as `transitives`, separately.
 - **A bump's `releaseRequestId` is a request id, or one of two sentinels** — `converged` (nothing
   came back to hold on to) and `refused`. Both are rendered as they arrive and never linked. The id
   names an OPEN release request in qits-projects, not a release: the quality gates settle it and Auto
   Release tags it afterwards.
-- **`GET /repositories/{name}/downstream` answers 200 for a name it does not know**, with an empty
-  `downstream`: "who is downstream of this" has an honest answer for any name, and it is "nothing".
 
 ## How it is served
 

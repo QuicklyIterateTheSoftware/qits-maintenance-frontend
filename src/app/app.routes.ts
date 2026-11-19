@@ -4,9 +4,10 @@ import { DependenciesRedirect } from './dependencies/dependencies-redirect';
 import { NotFound } from './not-found/not-found';
 
 /**
- * Ten addresses, all of them inside the platform chrome; two are `redirectTo` entries and five
- * others — `internal/dependencies`, `dependencies`, `external/dependencies`, `bumps/:id` and
- * `adoption/:repository/:version` — are full-page hops out of this application entirely.
+ * Ten addresses, all of them inside the platform chrome; two are `redirectTo` entries and six
+ * others — `internal/dependencies`, `dependencies`, `external/dependencies`, `bumps/:id`,
+ * `repositories/:name` and `adoption/:repository/:version` — are full-page hops out of this
+ * application entirely.
  *
  * **The first segment is the SECTION, and it is the organising idea of the whole application.**
  * `internal` is what this platform publishes and can release; `external` is what the world
@@ -27,12 +28,12 @@ import { NotFound } from './not-found/not-found';
  * hop. It is an eager import for that reason: it is not a page, it is the frame the pages arrive
  * in, and a frame that loaded in its own chunk would show a blank application while it did.
  *
- * **The path shape repeats the API's, noun for noun — where this application still answers.**
- * `/maintenance/repositories/qits-ci` is the page for what `GET /maintenance/api/repositories/qits-ci`
- * answers, section-neutral like the API itself: a repository's page shows both halves of what it
- * pins. `/maintenance/bumps/<id>` used to match `GET /maintenance/api/bumps/<id>` the same way; since
- * qits-2332 moved the bump page into the landing app, that address is one more full-page hop
- * instead (below), and this application answers nothing at it directly any more.
+ * **The path shape used to repeat the API's, noun for noun.** `/maintenance/repositories/qits-ci`
+ * matched what `GET /maintenance/api/repositories/qits-ci` answers, section-neutral like the API
+ * itself: a repository's page showed both halves of what it pins. `/maintenance/bumps/<id>` matched
+ * `GET /maintenance/api/bumps/<id>` the same way. qits-2332 moved the bump page into the landing app
+ * and qits-2334 did the same to the repository page, so both addresses are now full-page hops
+ * instead (below), and this application answers nothing at either of them directly any more.
  *
  * **A release was addressed by what it is, not by an id this application minted.**
  * `adoption/:repository/:version` names the whole of the adoption journey: a linker — a release
@@ -58,20 +59,23 @@ import { NotFound } from './not-found/not-found';
  * views have since moved out (below); what each forwards still travels as query parameters, just
  * one hop further on.
  *
- * **`/dependencies`, `internal/dependencies`, `external/dependencies`, `bumps/:id` and
- * `adoption/:repository/:version` all later went the other way.** The views they named moved into
- * the landing app — `/dependencies` to `/projects/<slug>/maintenance/dependencies` (qits-2317),
- * `internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330),
- * `external/dependencies` to `/projects/<slug>/maintenance/dependencies` (qits-2331), `bumps/:id` to
- * `/projects/<slug>/maintenance/bumps/<id>` (qits-2332), `adoption/:repository/:version` to
- * `/projects/<slug>/maintenance/adoption/<repository>/<version>` (qits-2333) — so all five addresses
- * are now {@link DependenciesRedirect}: a full-page hop to the screen that replaced them. Each
- * route's own `data` says which screen it goes to and which query parameters still mean something
- * there — `?behind=` for the first, `?ecosystem=` and `?name=` for the second, `?name=` for the
- * third, none for the fourth or the fifth, whose parameters travel in the path instead — and
- * {@link DependenciesRedirect} drops everything else as something the destination cannot act on.
- * Old bookmarks to any form of any of the five addresses still work; they just do not land on a
- * screen of this application any more.
+ * **`/dependencies`, `internal/dependencies`, `external/dependencies`, `bumps/:id`,
+ * `repositories/:name` and `adoption/:repository/:version` all later went the other way.** The
+ * views they named moved into the landing app — `/dependencies` to
+ * `/projects/<slug>/maintenance/dependencies` (qits-2317), `internal/dependencies` to
+ * `/projects/<slug>/maintenance/artifacts` (qits-2330), `external/dependencies` to
+ * `/projects/<slug>/maintenance/dependencies` (qits-2331), `bumps/:id` to
+ * `/projects/<slug>/maintenance/bumps/<id>` (qits-2332), `repositories/:name` to
+ * `/projects/<slug>/maintenance/repositories/<name>` (qits-2334) and
+ * `adoption/:repository/:version` to `/projects/<slug>/maintenance/adoption/<repository>/<version>`
+ * (qits-2333) — so all six addresses are now {@link DependenciesRedirect}: a full-page hop to the
+ * screen that replaced them. Each route's own `data` says which screen it goes to and which query
+ * parameters still mean something there — `?behind=` for the first, `?ecosystem=` and `?name=` for
+ * the second, `?name=` for the third, none for the fourth, whose id travels in the path instead,
+ * none for the fifth either, whose name travels the same way, and none for the sixth either, whose
+ * repository and version both travel the same way — and {@link DependenciesRedirect} drops
+ * everything else as something the destination cannot act on. Old bookmarks to any form of any of
+ * the six addresses still work; they just do not land on a screen of this application any more.
  *
  * **Every one of these is a deep link a reader will paste.** They survive a reload only because
  * qits-platform-maintenance sets `quarkus.quinoa.enable-spa-routing=true`, which answers an unknown
@@ -105,9 +109,12 @@ const OWN: Routes = [
     data: { section: 'EXTERNAL' },
     loadComponent: () => import('./repositories/repositories-page').then((m) => m.RepositoriesPage),
   },
+  // The address one repository had before it moved into the landing app, as
+  // `/projects/<slug>/maintenance/repositories/<name>` (qits-2334). No query travels.
   {
     path: 'repositories/:name',
-    loadComponent: () => import('./repositories/repository-page').then((m) => m.RepositoryPage),
+    component: DependenciesRedirect,
+    data: { landingPath: 'maintenance/repositories/:name', forward: [] },
   },
   // The address one bump had before it moved into the landing app, as
   // `/projects/<slug>/maintenance/bumps/<id>` (qits-2332). No query travels.
@@ -154,9 +161,12 @@ const OWN: Routes = [
  * so it falls back to `qits` rather than to the unscoped answer `QITS_SCOPE` would give while that
  * list is still loading.
  *
- * This app is project scoped and not repository scoped. A repository page here is about a
- * repository's *pins*, which the inventory keys by name across the whole catalog, so its address
- * stays `repositories/<name>` rather than becoming the platform's `<category>/<repo>` form.
+ * This app is project scoped and not repository scoped — or was, while it still had a repository
+ * page of its own. That page was about a repository's *pins*, which the inventory keys by name
+ * across the whole catalog, so its address stayed `repositories/<name>` rather than becoming the
+ * platform's `<category>/<repo>` form; qits-2334 moved the page into the landing app, at the same
+ * `repositories/<name>` noun under `/projects/<slug>/maintenance/`, so the address shape outlived
+ * the page that used to answer it here.
  */
 const SCOPED: Route = { path: ':project', children: OWN };
 

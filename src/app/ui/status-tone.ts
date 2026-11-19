@@ -4,13 +4,15 @@ import type { QitsBadgeTone } from '@qits/ui-components';
  * What colour a status word is, in one place, for every badge on every page.
  *
  * `QitsBadge` takes a *semantic* tone and never a colour, so this file is a translation between two
- * vocabularies rather than styling. Five enums share it — a repository's scan status, a branch's
- * state, a bump's outcome, an artifact's bill of materials and a dependent's currency — because
- * they overlap and never collide: `FAILED` means the same thing on a branch, on a bump and on an
- * ingest, and no word appears in two of them with two meanings. A sixth, a downstream repository's
- * adoption of a release, shared `PENDING` with the artifact's bill of materials too, until the
- * adoption page moved into the landing app (qits-2333); `PENDING` now belongs to the bill of
- * materials alone, meaning "nothing has happened here yet, and something is expected to".
+ * vocabularies rather than styling. Four enums share it — a repository's scan status, a branch's
+ * state, a bump's outcome and an artifact's bill of materials — because they overlap and never
+ * collide: `FAILED` means the same thing on a branch, on a bump and on an ingest, and no word
+ * appears in two of them with two meanings. Two more used to as well: a dependent's currency,
+ * retired with the repository page itself when it moved into the landing app at qits-2334; and a
+ * downstream repository's adoption of a release, which shared `PENDING` with the artifact's bill
+ * of materials until the adoption page moved the same way at qits-2333 — `PENDING` now belongs to
+ * the bill of materials alone, meaning "nothing has happened here yet, and something is expected
+ * to".
  *
  * **REQUESTED and RUNNING share the warning tone.** The reader's question is "what is still
  * happening", and a bump queued behind the worker and a bump in flight are the same answer to it.
@@ -18,9 +20,9 @@ import type { QitsBadgeTone } from '@qits/ui-components';
  * **STALE is a warning, not a failure.** A branch someone rewrote by hand is not broken — the
  * service simply stops pushing to it, and a person owns it now.
  *
- * **MISSING and UNKNOWN are neutral, and that is the whole point of them.** An artifact with no
- * bill of materials, and a dependent whose subject has no known latest, are both "we cannot say" —
- * and a red badge would read as "something is wrong here", which is a different sentence.
+ * **MISSING is neutral, and that is the whole point of it.** An artifact with no bill of materials
+ * yet is "we cannot say" — and a red badge would read as "something is wrong here", which is a
+ * different sentence.
  */
 const TONES: Readonly<Record<string, QitsBadgeTone>> = {
   // A repository's last scan.
@@ -43,10 +45,6 @@ const TONES: Readonly<Record<string, QitsBadgeTone>> = {
   PENDING: 'warning',
   INGESTED: 'success',
   MISSING: 'neutral',
-  // Whether a dependent ships the newest version of what it embeds.
-  CURRENT: 'success',
-  BEHIND: 'warning',
-  UNKNOWN: 'neutral',
 };
 
 /**
