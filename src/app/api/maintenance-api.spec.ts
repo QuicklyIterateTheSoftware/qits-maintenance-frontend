@@ -4,14 +4,13 @@ import { TestBed } from '@angular/core/testing';
 import { MaintenanceApi } from './maintenance-api';
 
 /**
- * The seven calls, at the addresses qits-platform-maintenance serves them at.
+ * The four calls, at the addresses qits-platform-maintenance serves them at.
  *
  * The assertions worth having are the ones that are invisible on screen when they are wrong:
  * **every path is relative**, because a configured origin would leave the edge's session cookie
  * behind and turn every read into a 401; **the verb is right**, because the one POST here starts
- * real work and a GET that should have been a POST fails silently as a 405; **a name is encoded**,
- * because a dependency name holds slashes and colons; and **a failure reaches the caller whole**,
- * because the pages draw the service's own sentence from it.
+ * real work and a GET that should have been a POST fails silently as a 405; and **a failure reaches
+ * the caller whole**, because the pages draw the service's own sentence from it.
  */
 describe('MaintenanceApi', () => {
   let api: MaintenanceApi;
@@ -35,26 +34,6 @@ describe('MaintenanceApi', () => {
     request.flush([{ name: 'qits-ci', pending: 2, groups: [] }]);
 
     expect((await repositories).map((repository) => repository.name)).toEqual(['qits-ci']);
-  });
-
-  it('reads one repository by name, with its pins', async () => {
-    const repository = api.repository('qits-ci');
-
-    const request = http.expectOne('/maintenance/api/repositories/qits-ci');
-    expect(request.request.method).toBe('GET');
-    request.flush({ name: 'qits-ci', pins: [{ name: '@qits/angular' }] });
-
-    expect((await repository).pins).toHaveLength(1);
-  });
-
-  it('asks what consumes a repository at the repository’s own address', async () => {
-    const dependents = api.repositoryDependents('qits-ci');
-
-    const request = http.expectOne('/maintenance/api/repositories/qits-ci/dependents');
-    expect(request.request.method).toBe('GET');
-    request.flush({ repository: 'qits-ci', artifacts: [] });
-
-    expect((await dependents).repository).toBe('qits-ci');
   });
 
   it('starts a scan with a POST carrying the scope, and nothing else', async () => {
@@ -92,29 +71,6 @@ describe('MaintenanceApi', () => {
     await all;
   });
 
-  /** The dependents followed to the end, at the repository's own address beside them. */
-  it('asks what is downstream of a repository at the repository’s own address', async () => {
-    const downstream = api.downstream('qits-eventstream');
-
-    const request = http.expectOne('/maintenance/api/repositories/qits-eventstream/downstream');
-    expect(request.request.method).toBe('GET');
-    request.flush({
-      repository: 'qits-eventstream',
-      catalogId: 'repo-eventstream',
-      downstream: [
-        {
-          repository: 'qits-ci-frontend',
-          catalogId: 'r1',
-          archetype: 'FRONTEND',
-          depth: 1,
-          via: [],
-        },
-      ],
-    });
-
-    expect((await downstream).downstream[0].repository).toBe('qits-ci-frontend');
-  });
-
   /**
    * The journey of one release, by the release it is about. Both halves are query parameters and
    * neither is a segment: the pair is one question, and the service answers 400 to half of it.
@@ -137,18 +93,6 @@ describe('MaintenanceApi', () => {
     });
 
     expect((await journey).version).toBe('2026.905.1');
-  });
-
-  it('percent-encodes a name rather than pasting it into the path', async () => {
-    const repository = api.repository('a/b');
-    http.expectOne('/maintenance/api/repositories/a%2Fb').flush({ name: 'a/b', pins: [] });
-    await repository;
-
-    const downstream = api.downstream('a/b');
-    http
-      .expectOne('/maintenance/api/repositories/a%2Fb/downstream')
-      .flush({ repository: 'a/b', catalogId: null, downstream: [] });
-    await downstream;
   });
 
   it('rejects with the service’s own message rather than swallowing it', async () => {

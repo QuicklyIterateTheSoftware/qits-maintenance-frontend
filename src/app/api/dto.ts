@@ -43,29 +43,8 @@ export type ScanScope = 'INTERNAL' | 'EXTERNAL' | 'ALL';
  */
 export type InventorySection = 'INTERNAL' | 'EXTERNAL';
 
-/**
- * Whether a dependency is one of ours, the world's, or neither.
- *
- * `REACTOR` is a module of the build that declares it — a maven sibling in the same tree, which has
- * no registry to be behind. `UNRESOLVED` is a coordinate the scan could not place in either world.
- * Both are pins a manifest really holds, and neither is ever going to move, which is why the
- * repository page keeps them out of the two tables a reader is actually working through.
- */
-export type PinKind = InventorySection | 'REACTOR' | 'UNRESOLVED';
-
-/**
- * How a dependency reaches the repository. `DIRECT` is the only value the service sends, because a
- * pin is by definition a line in a manifest; what a released artifact merely *contains* is a
- * `TransitiveDto` and not a pin at all. It is on the wire so that a page drawing both in one table
- * reads the distinction off the row rather than off which array the row came out of.
- */
-export type PinScope = 'DIRECT';
-
 /** Whether the repository asked for a grouping, or was given the fallback one. */
 export type GroupSource = 'CONFIG' | 'DEFAULT';
-
-/** How far an artifact's bill of materials got. `MISSING` is ordinary, not a fault. */
-export type SbomStatus = 'PENDING' | 'INGESTED' | 'MISSING' | 'FAILED';
 
 /**
  * Whether a downstream repository has taken a release yet.
@@ -124,94 +103,6 @@ export interface RepositoryDto {
   readonly groups: readonly GroupDto[];
 }
 
-/**
- * One pinned dependency, where it is pinned, and what the registry has.
- *
- * `pending` is the service's own answer to "is this behind" — a version comparison this app must
- * not repeat: maven, npm and OCI tags order differently and a client's guess would disagree with
- * the branch the service actually bumps.
- */
-export interface PinDto {
-  readonly manifestPath: string;
-  readonly ecosystem: string;
-  readonly name: string;
-  readonly version: string;
-  readonly range: string | null;
-  readonly kind: PinKind;
-  readonly latest: string | null;
-  /**
-   * Why the last lookup of `latest` failed, or null when it did not.
-   *
-   * A pin whose registry could not be reached has a null `latest` and a false `pending`, which is
-   * indistinguishable on screen from a pin that is up to date — so this is drawn wherever `latest`
-   * is. A failed lookup must never read as good news.
-   */
-  readonly latestError: string | null;
-  readonly pending: boolean;
-  readonly group: string;
-  readonly location: string;
-  /** Always `DIRECT`: a pin is a line in a manifest. See `PinScope`. */
-  readonly scope: PinScope;
-}
-
-/**
- * One thing a repository's released artifacts CONTAIN that no manifest of theirs names.
- *
- * **Deliberately not a pin.** There is no line to edit, no location, no group and no bump — which
- * is why it is drawn greyed, under the direct dependency that pulled it in, and never in the amber
- * a pending pin gets. What it is for is seeing: a vulnerable library three levels down is invisible
- * on a page built from manifests alone, and it is the first thing anybody asks about after an
- * advisory.
- *
- * `via` is the direct component whose subtree pulled it in — null when the artifact's own root
- * names it. `behind` is false whenever nothing is known, because "we could not find out" must not
- * read like "you are behind".
- */
-export interface TransitiveDto {
-  /** Null when the purl named a world this service does not inventory. */
-  readonly ecosystem: string | null;
-  readonly name: string;
-  readonly version: string;
-  readonly via: string | null;
-  readonly behind: boolean;
-}
-
-/** One repository with its pins and what its artifacts contain — `GET /repositories/{name}`. */
-export interface RepositoryDetailDto extends RepositoryDto {
-  readonly pins: readonly PinDto[];
-  readonly transitives: readonly TransitiveDto[];
-}
-
-/** One artifact of ours that embeds another — the newest release of it, and what it shipped. */
-export interface DependentDto {
-  readonly artifactEcosystem: string;
-  readonly artifactName: string;
-  readonly artifactVersion: string;
-  /** The repository that built it, which is where a reader goes next. */
-  readonly repository: string;
-  /** The version of the subject that this release actually contains. */
-  readonly embeddedVersion: string;
-  /** Whether its own manifest names the subject, or something in its tree does. */
-  readonly direct: boolean;
-  readonly occurredAt: string | null;
-  readonly sbomStatus: SbomStatus;
-}
-
-/** One artifact of a repository, with what embeds it. */
-export interface ArtifactDependentsDto {
-  readonly ecosystem: string;
-  readonly name: string;
-  /** The newest version the service knows for this artifact; null before any lookup or event. */
-  readonly latest: string | null;
-  readonly dependents: readonly DependentDto[];
-}
-
-/** What consumes a repository's artifacts — `GET /repositories/{name}/dependents`. */
-export interface RepositoryDependentsDto {
-  readonly repository: string;
-  readonly artifacts: readonly ArtifactDependentsDto[];
-}
-
 /** One line of a bump: the pin it moves, and where that pin is written. */
 export interface BumpChangeDto {
   readonly ecosystem: string;
@@ -229,11 +120,12 @@ export interface BumpChangeDto {
  * is `maintenance/<group>`, which is the one the service derives from the group anyway.
  *
  * `changes` is optional for a duller reason: the listing may leave it out to keep its rows small,
- * and a page that counted it blind would break on the day it does. `changeCount` is that count.
+ * and a page that counted it blind would break on the day it does.
  *
  * `releaseRequestId` is what qits-projects answered when the branch was offered for release. It is
  * the id of an OPEN release request — the gates settle it and Auto Release tags it afterwards — or
- * one of the two sentinels below, or null for a bump that never got that far.
+ * one of two sentinel words the service writes in its place, or null for a bump that never got that
+ * far.
  */
 export interface BumpDto {
   readonly id: string;
@@ -273,29 +165,6 @@ export interface BumpDto {
   readonly releaseStateAt?: string | null;
 }
 
-/** No request id came back, or the branch was gone before the ask could be made. */
-export const RELEASE_CONVERGED = 'converged';
-
-/** The ask was refused in a way a retry cannot fix; the bump's `message` is the sentence. */
-export const RELEASE_REFUSED = 'refused';
-
-/**
- * What a `releaseRequestId` that is not a request id means, or null when it is one.
- *
- * The two sentinels are written into the same column as a real id, so a page that linked the value
- * blindly would offer a reader a release request called “refused”. They are rendered as they arrive
- * — that is what the column holds — with the sentence that explains them beside.
- */
-export function releaseSentinel(releaseRequestId: string | null | undefined): string | null {
-  if (releaseRequestId === RELEASE_CONVERGED) {
-    return 'there was nothing left to ask for — no request came back';
-  }
-  if (releaseRequestId === RELEASE_REFUSED) {
-    return 'the release request was refused; the message says why';
-  }
-  return null;
-}
-
 /** What a 202 carries: the id of the work that was accepted, and nothing else. */
 export interface AcceptedDto {
   readonly id: string;
@@ -304,52 +173,6 @@ export interface AcceptedDto {
 /** A bump that has stopped. Only the other two are worth polling. */
 export function isBumpTerminal(status: BumpStatus): boolean {
   return status !== 'REQUESTED' && status !== 'RUNNING';
-}
-
-/** How many pins a bump moves — zero for a row the listing sent without its changes. */
-export function changeCount(bump: BumpDto): number {
-  return bump.changes?.length ?? 0;
-}
-
-/**
- * One repository downstream of another, and how it was reached.
- *
- * `depth` is how many hops away it is: 1 pins something the subject publishes, 2 pins something
- * *that* repository publishes, and so on to the end of the chain.
- *
- * **`via` is the PARENTS, not the path.** It names every repository at `depth - 1` that leads here,
- * name-ascending — several of them, when two upstreams both do — because `DownstreamResolver` walks
- * one level at a time and collects each consumer's upstreams as it goes. At depth 1 that is the
- * subject itself. It is emphatically not a chain from the root to this entry: two names in it are
- * siblings one hop up, and reading them as a route would invent an order between them that nothing
- * here means. Those are the incoming edges of a DAG, which is what makes a deep entry readable
- * without re-deriving the graph on screen.
- *
- * `catalogId` is qits-projects' id for the same repository, or null where the inventory cannot
- * place the name. It is a join for the platform's other addresses and never this app's own: every
- * page here is addressed by NAME.
- */
-export interface DownstreamEntryDto {
-  readonly repository: string;
-  readonly catalogId: string | null;
-  readonly archetype: string | null;
-  readonly depth: number;
-  readonly via: readonly string[];
-}
-
-/**
- * Everything downstream of one repository — `GET /repositories/{name}/downstream`.
- *
- * **Evaluated per request, not stored.** The service traces declared pins and the bills of
- * materials of what has been released, to the end of the chain rather than one hop, and answers
- * `depth` ascending then name. An unknown repository is an empty `downstream` and not a 404: the
- * question "who is downstream of this" has an honest answer for a name nothing knows, and it is
- * "nothing here".
- */
-export interface DownstreamDto {
-  readonly repository: string;
-  readonly catalogId: string | null;
-  readonly downstream: readonly DownstreamEntryDto[];
 }
 
 /** One thing a release published, which is what the repositories below it pin. */

@@ -74,21 +74,14 @@ describe('App', () => {
     http.verify();
   });
 
-  it('routes a repository name to its page, still inside the chrome', async () => {
+  /** The repository page moved into the landing app at qits-2334; this is its hop out. */
+  it('routes the legacy repository address to the redirect, inside the layout', async () => {
     const harness = await RouterTestingHarness.create('/repositories/qits-ci');
-    http.expectOne('/maintenance/api/repositories/qits-ci').flush({ name: 'qits-ci', pins: [] });
-    http.expectOne((candidate) => candidate.url === '/maintenance/api/bumps').flush([]);
-    http
-      .expectOne('/maintenance/api/repositories/qits-ci/dependents')
-      .flush({ repository: 'qits-ci', artifacts: [] });
-    http
-      .expectOne('/maintenance/api/repositories/qits-ci/downstream')
-      .flush({ repository: 'qits-ci', catalogId: null, downstream: [] });
     await harness.fixture.whenStable();
 
     const layout = harness.routeNativeElement as HTMLElement;
     expect(layout.tagName.toLowerCase()).toBe('qits-main-layout');
-    expect(layout.querySelector('main app-repository-page')).not.toBeNull();
+    expect(layout.querySelector('main app-dependencies-redirect')).not.toBeNull();
     http.verify();
   });
 

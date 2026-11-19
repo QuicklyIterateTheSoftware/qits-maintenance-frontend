@@ -19,8 +19,9 @@ import { QitsAppLinks } from '@qits/ui-components';
  * `landingPath` may also carry `:param` placeholders, substituted from this route's own `paramMap`
  * rather than forwarded as a query parameter the old address never had — `bumps/:id` names the id as
  * a path segment, not a search term, so `maintenance/bumps/:id` is how the bump page's new address
- * is spelled here, with `:id` filled in and `encodeURIComponent`-escaped at read time (qits-2332). A
- * `landingPath` with no such placeholder behaves exactly as it did before that ticket.
+ * is spelled here, with `:id` filled in and `encodeURIComponent`-escaped at read time (qits-2332).
+ * `repositories/:name` reuses the same mechanism for its own `:name` placeholder, moved the same way
+ * at qits-2334. A `landingPath` with no such placeholder behaves exactly as it did before qits-2332.
  */
 export interface DependenciesRedirectData {
   readonly landingPath: string;
@@ -31,9 +32,10 @@ export interface DependenciesRedirectData {
  * Where an old address of this application's own now goes, now that the screen it named lives in
  * the landing app instead: `/dependencies` to `/projects/<slug>/maintenance/dependencies`
  * (qits-2317), `/internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330),
- * `/external/dependencies` back to `/projects/<slug>/maintenance/dependencies` (qits-2331), and
- * `/bumps/:id` to `/projects/<slug>/maintenance/bumps/<id>` (qits-2332). All four are the same one
- * hop, differing only in the `data` the route pointing here carries — see
+ * `/external/dependencies` back to `/projects/<slug>/maintenance/dependencies` (qits-2331),
+ * `/bumps/:id` to `/projects/<slug>/maintenance/bumps/<id>` (qits-2332), and `/repositories/:name` to
+ * `/projects/<slug>/maintenance/repositories/<name>` (qits-2334). All five are the same one hop,
+ * differing only in the `data` the route pointing here carries — see
  * {@link DependenciesRedirectData}.
  *
  * **The project comes from the route, not from `QITS_SCOPE`.** Every other page in this
