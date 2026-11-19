@@ -4,8 +4,8 @@ The maintenance frontend: what every repository in the catalog pins, what the re
 released since, what the platform's own releases already ship, which maintenance branches are
 waiting, and how far each of our own releases has travelled downstream. Served by
 qits-platform-maintenance at the root of `maintenance.<env>.<domain>` through Quinoa. Ten
-addresses — seven pages and three redirects — all inside the platform chrome, and each of them
-reachable under a project slug as well.
+addresses — seven pages, two redirects and one full-page hop out to the landing app — all inside the
+platform chrome, and each of them reachable under a project slug as well.
 
 **The first segment is the section, and it is the organising idea of the application.** `internal`
 is what this platform publishes and can release; `external` is what the world publishes and
@@ -32,12 +32,17 @@ by different readers: internal is release work, external is patching.
   shape the answer has — a graph, not a tree. A card either carries the version, with the release of
   its own that first did and when, or is waiting; a deep card needs no sentence about what it waits
   behind, because the arrows into it say so. Deep chains scroll sideways. See below.
-- **`/`** redirects to `/internal`, **`/dependencies`** — the search's address when there was only
-  one of them — redirects to `/internal/dependencies` with its query parameters intact, and
+- **`/`** redirects to `/internal`, and
   **`/trains/by-release/<repository>/<version>`** — the address a release link landed on while the
   release trains existed — redirects to `/adoption/<repository>/<version>`, carrying both of its
   parameters. Nothing else of the trains survives: their listing and one train's id named documents
   this service no longer holds.
+- **`/dependencies`** — the search's address when there was only one of them — no longer resolves to
+  a screen of this application. The dependency view moved into the landing app, at
+  `/projects/<slug>/maintenance/dependencies`, and this address now exists only to carry an old
+  bookmark there: it forwards `?behind=`, drops `?ecosystem=` and `?name=` (lenses the landing screen
+  does not have), and resolves `<slug>` from the `:project` segment of the address it was given, or
+  `qits` where there was none (qits-2317).
 
 ## The project in the address
 

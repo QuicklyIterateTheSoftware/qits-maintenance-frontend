@@ -17,8 +17,10 @@ import { QITS_SCHEDULER } from './ui/scheduler';
 /**
  * The URL grammar, asserted where it is cheapest to get wrong: every page is reachable twice — at
  * the root of this host and under a project slug — this app's own first segments still win, and the
- * three redirects land where they say they do, including the retired `trains/by-release/…`, which
- * carries both of its parameters into the adoption journey that replaced it.
+ * two `redirectTo` entries land where they say they do, including the retired `trains/by-release/…`,
+ * which carries both of its parameters into the adoption journey that replaced it. `/dependencies`
+ * is a third, different kind of redirect — a full-page hop to the landing app — and is only checked
+ * here for reaching the right component; `dependencies-redirect.spec.ts` covers what it forwards.
  *
  * `app.spec.ts` asserts what the shell draws. This file asserts only that an address reaches the
  * page it names, in both forms.
@@ -107,15 +109,17 @@ describe('routes', () => {
     ).not.toBeNull();
   });
 
-  /** The address the search had when there was only one of them, still in links that are out there. */
-  it('redirects the legacy /dependencies to the internal view', async () => {
+  /**
+   * The address the search had before it moved into the landing app. What it forwards and drops is
+   * `dependencies-redirect.spec.ts`'s job to assert; this only checks that the address still
+   * resolves, to the redirect screen rather than to a page of this application.
+   */
+  it('serves the legacy /dependencies as a redirect out to the landing app', async () => {
     const harness = await RouterTestingHarness.create('/dependencies?name=@qits/*');
-    http.expectOne('/maintenance/api/artifacts').flush([]);
     await harness.fixture.whenStable();
 
-    expect(TestBed.inject(Router).url).toContain('/internal/dependencies');
     expect(
-      (harness.routeNativeElement as HTMLElement).querySelector('app-internal-dependencies-page'),
+      (harness.routeNativeElement as HTMLElement).querySelector('app-dependencies-redirect'),
     ).not.toBeNull();
   });
 

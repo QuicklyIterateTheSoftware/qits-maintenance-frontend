@@ -1,9 +1,11 @@
 import type { Route, Routes } from '@angular/router';
 import { QitsMainLayout } from '@qits/ui-components';
+import { DependenciesRedirect } from './dependencies/dependencies-redirect';
 import { NotFound } from './not-found/not-found';
 
 /**
- * Ten addresses, all of them inside the platform chrome, and three of them redirects.
+ * Ten addresses, all of them inside the platform chrome; two are `redirectTo` entries and a third,
+ * `/dependencies`, is a full-page hop out of this application entirely.
  *
  * **The first segment is the SECTION, and it is the organising idea of the whole application.**
  * `internal` is what this platform publishes and can release; `external` is what the world
@@ -46,10 +48,12 @@ import { NotFound } from './not-found/not-found';
  * external search, `?ecosystem=&name=` on the internal one: both hold slashes, colons and
  * asterisks, and a query parameter is what makes the back button mean "the previous question".
  *
- * **`/dependencies` still resolves.** It was the external search's address before there were two of
- * them, and it is in links that are already out there; it redirects to the internal view, which is
- * the front door of the application now. Query parameters survive a redirect, so a pasted
- * `?name=…` arrives with it.
+ * **`/dependencies` later went the other way.** The dependency view moved into the landing app, at
+ * `/projects/<slug>/maintenance/dependencies`, so this address is now {@link DependenciesRedirect}:
+ * a full-page hop to that screen, carrying `?behind=` across and dropping everything else — the old
+ * `?ecosystem=` and `?name=` named a search that screen does not have (qits-2317). Old bookmarks to
+ * either form of this app's own `/dependencies` still work; they just do not land on a screen of
+ * this application any more.
  *
  * **Every one of these is a deep link a reader will paste.** They survive a reload only because
  * qits-platform-maintenance sets `quarkus.quinoa.enable-spa-routing=true`, which answers an unknown
@@ -95,8 +99,8 @@ const OWN: Routes = [
     path: 'trains/by-release/:repository/:version',
     redirectTo: 'adoption/:repository/:version',
   },
-  // The address the dependency search had when there was only one of them.
-  { path: 'dependencies', pathMatch: 'full', redirectTo: 'internal/dependencies' },
+  // The address the dependency search had before it moved into the landing app.
+  { path: 'dependencies', pathMatch: 'full', component: DependenciesRedirect },
 ];
 
 /**
@@ -106,9 +110,13 @@ const OWN: Routes = [
  * `external`, `repositories`, `dependencies`, `bumps`, `adoption` and the retired `trains` stay
  * this app's own addresses and never read as projects of those names; only what none of them claim
  * falls through to `:project`.
- * A page
+ * Every page but one
  * never reads this parameter: it asks `QITS_SCOPE`, which parses the address the same way in both
- * forms, so one component serves both.
+ * forms, so one component serves both. {@link DependenciesRedirect} is the exception — it reads
+ * `:project` straight off this route rather than through `QITS_SCOPE`, because it has no reason to
+ * wait on the project list that token's parsing needs: it is leaving this application either way,
+ * so it falls back to `qits` rather than to the unscoped answer `QITS_SCOPE` would give while that
+ * list is still loading.
  *
  * This app is project scoped and not repository scoped. A repository page here is about a
  * repository's *pins*, which the inventory keys by name across the whole catalog, so its address

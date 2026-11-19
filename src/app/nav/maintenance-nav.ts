@@ -45,8 +45,10 @@ const SECTIONS = [
  * a repository from inside this app, and it is where "back" means something. Marking nothing would
  * read as a fault; marking External would be a lie.
  *
- * The bare root and the legacy `/dependencies` both answer with the entry their redirect is heading
- * for, because this menu renders once before the redirect has landed and must not flicker.
+ * The bare root answers with the entry its redirect is heading for, because this menu renders once
+ * before the redirect has landed and must not flicker. The legacy `/dependencies` gets the same
+ * treatment even though its own redirect leaves this application entirely: Internal › Dependencies
+ * is still the nearest entry for the instant this menu is on screen at all.
  */
 function selected(segments: readonly string[]): string {
   const [first, second] = segments;
