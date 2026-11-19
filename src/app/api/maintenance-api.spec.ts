@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { MaintenanceApi } from './maintenance-api';
 
 /**
- * The eight calls, at the addresses qits-platform-maintenance serves them at.
+ * The seven calls, at the addresses qits-platform-maintenance serves them at.
  *
  * The assertions worth having are the ones that are invisible on screen when they are wrong:
  * **every path is relative**, because a configured origin would leave the edge's session cookie
@@ -90,16 +90,6 @@ describe('MaintenanceApi', () => {
     expect(every.request.params.has('repository')).toBe(false);
     every.flush([]);
     await all;
-  });
-
-  it('reads one bump by id', async () => {
-    const bump = api.bump('bump-1');
-
-    const request = http.expectOne('/maintenance/api/bumps/bump-1');
-    expect(request.request.method).toBe('GET');
-    request.flush({ id: 'bump-1', changes: [] });
-
-    expect((await bump).id).toBe('bump-1');
   });
 
   /** The dependents followed to the end, at the repository's own address beside them. */

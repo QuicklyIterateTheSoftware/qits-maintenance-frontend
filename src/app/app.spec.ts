@@ -112,13 +112,13 @@ describe('App', () => {
     http.verify();
   });
 
-  it('routes a bump id to its page', async () => {
+  /** The bump page moved into the landing app at qits-2332; this is its hop out. */
+  it('routes the legacy bump address to the redirect, inside the layout', async () => {
     const harness = await RouterTestingHarness.create('/bumps/bump-1');
-    http.expectOne('/maintenance/api/bumps/bump-1').flush({ id: 'bump-1', changes: [] });
     await harness.fixture.whenStable();
 
     const layout = harness.routeNativeElement as HTMLElement;
-    expect(layout.querySelector('main app-bump-page')).not.toBeNull();
+    expect(layout.querySelector('main app-dependencies-redirect')).not.toBeNull();
     http.verify();
   });
 

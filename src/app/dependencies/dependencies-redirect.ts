@@ -15,6 +15,12 @@ import { QitsAppLinks } from '@qits/ui-components';
  * travel there (qits-2330). `/external/dependencies` named the same search `/dependencies` once did,
  * by `?name=` with `?ecosystem=` alongside it, and lands on that same dependencies screen — so only
  * `?name=` travels, the one lens the search still has (qits-2331).
+ *
+ * `landingPath` may also carry `:param` placeholders, substituted from this route's own `paramMap`
+ * rather than forwarded as a query parameter the old address never had — `bumps/:id` names the id as
+ * a path segment, not a search term, so `maintenance/bumps/:id` is how the bump page's new address
+ * is spelled here, with `:id` filled in and `encodeURIComponent`-escaped at read time (qits-2332). A
+ * `landingPath` with no such placeholder behaves exactly as it did before that ticket.
  */
 export interface DependenciesRedirectData {
   readonly landingPath: string;
@@ -24,9 +30,10 @@ export interface DependenciesRedirectData {
 /**
  * Where an old address of this application's own now goes, now that the screen it named lives in
  * the landing app instead: `/dependencies` to `/projects/<slug>/maintenance/dependencies`
- * (qits-2317), `/internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330), and
- * `/external/dependencies` back to `/projects/<slug>/maintenance/dependencies` (qits-2331). All
- * three are the same one hop, differing only in the `data` the route pointing here carries — see
+ * (qits-2317), `/internal/dependencies` to `/projects/<slug>/maintenance/artifacts` (qits-2330),
+ * `/external/dependencies` back to `/projects/<slug>/maintenance/dependencies` (qits-2331), and
+ * `/bumps/:id` to `/projects/<slug>/maintenance/bumps/<id>` (qits-2332). All four are the same one
+ * hop, differing only in the `data` the route pointing here carries — see
  * {@link DependenciesRedirectData}.
  *
  * **The project comes from the route, not from `QITS_SCOPE`.** Every other page in this
@@ -35,6 +42,11 @@ export interface DependenciesRedirectData {
  * to wait for: it is leaving the moment it can, so it reads the `:project` segment the route table
  * already matched — present only under the scoped routes in `app.routes.ts` — and falls back to
  * `qits`, the estate's only project, exactly where that segment is absent.
+ *
+ * **A `landingPath` placeholder reads a different `paramMap` than `:project` does.** `:project`
+ * lives one level up, on the scoped parent route; a placeholder such as `:id` in `bumps/:id` is this
+ * route's own parameter, so it comes off `this.route.snapshot.paramMap` rather than `.parent`
+ * (qits-2332).
  *
  * **The destination's origin is an async answer, and this screen waits for it rather than
  * guessing.** `QitsAppLinks.origin('qits-landing')` and its `environmentOrigin()` fallback both
@@ -74,6 +86,17 @@ export class DependenciesRedirect {
   /** The `:project` segment one level up, or `undefined` at this app's own unscoped routes. */
   private readonly project = this.route.snapshot.parent?.paramMap.get('project') ?? 'qits';
 
+  /**
+   * `data.landingPath` with every `:param` placeholder substituted from this route's own
+   * `paramMap` and URL-encoded — `maintenance/bumps/:id` becomes `maintenance/bumps/bump-1`
+   * (qits-2332). A path with no such placeholder is returned unchanged.
+   */
+  private readonly landingPath = this.data.landingPath.replace(
+    /:([A-Za-z_][A-Za-z0-9_]*)/g,
+    (placeholder, name: string) =>
+      encodeURIComponent(this.route.snapshot.paramMap.get(name) ?? placeholder),
+  );
+
   /** The forwarded query string, built once: this page never re-renders on a param change. */
   private readonly query = (() => {
     const params = this.route.snapshot.queryParamMap;
@@ -93,7 +116,7 @@ export class DependenciesRedirect {
     if (!origin) {
       return undefined;
     }
-    const path = `/projects/${encodeURIComponent(this.project)}/${this.data.landingPath}`;
+    const path = `/projects/${encodeURIComponent(this.project)}/${this.landingPath}`;
     const search = this.query ? `?${this.query}` : '';
     return `${origin.replace(/\/+$/, '')}${path}${search}`;
   });

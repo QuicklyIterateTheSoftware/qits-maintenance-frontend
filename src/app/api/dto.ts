@@ -225,8 +225,8 @@ export interface BumpChangeDto {
 /**
  * A bump: the branch a group's pending changes were asked to land on, and how that went.
  *
- * `branch` is optional because the contract's row does not name it — the bump page falls back to
- * `maintenance/<group>`, which is the branch the service derives from the group anyway.
+ * `branch` is optional because the contract's row does not name it; where it is absent the branch
+ * is `maintenance/<group>`, which is the one the service derives from the group anyway.
  *
  * `changes` is optional for a duller reason: the listing may leave it out to keep its rows small,
  * and a page that counted it blind would break on the day it does. `changeCount` is that count.
@@ -273,21 +273,6 @@ export interface BumpDto {
   readonly releaseStateAt?: string | null;
 }
 
-/**
- * Whether a release state means nothing is coming from that request as it stands.
- *
- * PENDING and READY are on their way; RELEASED, FINALIZED and OBSOLETE already shipped — held, not
- * stopped. WITHDRAWN is transient rather than stopped: the service clears the request id and asks
- * for a fresh one, so a reader never settles on it. Only REJECTED, FAILED, CONFLICTED, or a state
- * this page does not recognise, mean the release is not coming.
- */
-export function releaseStopped(state: string | null | undefined): boolean {
-  return (
-    !!state &&
-    !['PENDING', 'READY', 'RELEASED', 'FINALIZED', 'OBSOLETE', 'WITHDRAWN'].includes(state)
-  );
-}
-
 /** No request id came back, or the branch was gone before the ask could be made. */
 export const RELEASE_CONVERGED = 'converged';
 
@@ -324,11 +309,6 @@ export function isBumpTerminal(status: BumpStatus): boolean {
 /** How many pins a bump moves — zero for a row the listing sent without its changes. */
 export function changeCount(bump: BumpDto): number {
   return bump.changes?.length ?? 0;
-}
-
-/** The branch a bump is about — the row's own, or the one its group's name implies. */
-export function bumpBranch(bump: BumpDto): string {
-  return bump.branch || `maintenance/${bump.group}`;
 }
 
 /**

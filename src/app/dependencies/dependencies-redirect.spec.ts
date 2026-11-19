@@ -6,14 +6,15 @@ import { provideQitsNavigationTree, type QitsNavigation } from '@qits/ui-compone
 import { DependenciesRedirect, type DependenciesRedirectData } from './dependencies-redirect';
 
 /**
- * Where an old bookmark to this app's own `/dependencies`, `internal/dependencies` and
- * `external/dependencies` — and their `/<project>/…` forms — lands, now that the views they named
- * live in the landing app.
+ * Where an old bookmark to this app's own `/dependencies`, `internal/dependencies`,
+ * `external/dependencies` and `bumps/:id` — and their `/<project>/…` forms — lands, now that the
+ * views they named live in the landing app.
  *
- * **No router here, on purpose.** The component reads its one route parameter off
- * `ActivatedRoute.snapshot.parent`, which is a plain object this suite can shape directly — mounting
- * the whole route table through a harness would additionally have to stand up `QitsMainLayout` just
- * to reach a page that is leaving before it would ever be drawn.
+ * **No router here, on purpose.** The component reads `:project` off
+ * `ActivatedRoute.snapshot.parent` and any `landingPath` placeholder, such as `bumps/:id`'s own
+ * `:id`, off its own `snapshot.paramMap` (qits-2332) — both of which are plain objects this suite
+ * can shape directly — mounting the whole route table through a harness would additionally have to
+ * stand up `QitsMainLayout` just to reach a page that is leaving before it would ever be drawn.
  *
  * **`DOCUMENT` is a proxy over the real one, not a bare replacement.** jsdom's own
  * `location.replace` cannot be spied on at all, but the real `DOCUMENT` is also what Angular's own
@@ -54,10 +55,17 @@ describe('DependenciesRedirect', () => {
     forward: ['name'],
   };
 
+  /** The route `data` `bumps/:id` carries, since qits-2332: the id travels in the path, not a query. */
+  const BUMP_DATA: DependenciesRedirectData = {
+    landingPath: 'maintenance/bumps/:id',
+    forward: [],
+  };
+
   /** `project` left out is this app's own unscoped address, whose route names no project. */
   function mount(options: {
     readonly data?: DependenciesRedirectData;
     readonly project?: string;
+    readonly params?: Readonly<Record<string, string>>;
     readonly query?: Readonly<Record<string, string>>;
     readonly navigation?: QitsNavigation;
   }): ComponentFixture<DependenciesRedirect> {
@@ -65,6 +73,7 @@ describe('DependenciesRedirect', () => {
     const route = {
       snapshot: {
         data: options.data ?? DEPENDENCIES_DATA,
+        paramMap: convertToParamMap(options.params ?? {}),
         queryParamMap: convertToParamMap(options.query ?? {}),
         parent:
           options.project === undefined
@@ -199,6 +208,58 @@ describe('DependenciesRedirect', () => {
 
       expect(replace).toHaveBeenCalledWith(
         'https://qits.example.test/projects/qits/maintenance/dependencies?name=%40angular%2F*',
+      );
+    });
+  });
+
+  describe('bumps/:id, forwarding to maintenance/bumps/<id> (qits-2332)', () => {
+    it('redirects to the landing app’s bump page, with the id url-encoded in the path', () => {
+      mount({
+        data: BUMP_DATA,
+        project: 'qits',
+        params: { id: 'bump 1/x' },
+        query: { x: '1' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledOnce();
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/bumps/bump%201%2Fx',
+      );
+    });
+
+    it('uses the estate’s only project when the address names none', () => {
+      mount({ data: BUMP_DATA, params: { id: 'bump-1' }, navigation: LANDING_ORIGIN });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/bumps/bump-1',
+      );
+    });
+
+    it('carries the named project across, under the scoped /<project>/bumps/:id form', () => {
+      mount({
+        data: BUMP_DATA,
+        project: 'acme',
+        params: { id: 'bump-1' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/acme/maintenance/bumps/bump-1',
+      );
+    });
+
+    it('forwards no query string at all, this address never had one to carry', () => {
+      mount({
+        data: BUMP_DATA,
+        project: 'qits',
+        params: { id: 'bump-1' },
+        query: { x: '1' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/maintenance/bumps/bump-1',
       );
     });
   });
