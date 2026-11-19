@@ -9,9 +9,10 @@ import { QitsAppLinks } from '@qits/ui-components';
  * `landingPath` is the screen under `/projects/<slug>/` the address moved to; `forward` names which
  * of the old address's own query parameters still mean something there. Everything else the old
  * address carried is dropped rather than forwarded as something the destination cannot act on —
- * `/internal/dependencies` named `?behind=`, which the landing app's artifacts screen does not
- * read, and `/dependencies` named `?ecosystem=&name=`, which its dependencies screen does not
- * either (qits-2317, qits-2330).
+ * `/dependencies` named a search by `?ecosystem=&name=` that the landing app's dependencies screen
+ * does not have, so only its `?behind=` travels (qits-2317); `/internal/dependencies` named one
+ * artifact by the same two parameters, which the artifacts screen reads as its detail, so they do
+ * travel there (qits-2330).
  */
 export interface DependenciesRedirectData {
   readonly landingPath: string;
